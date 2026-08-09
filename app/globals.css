@@ -326,6 +326,11 @@ footer { padding-top: 65px; background: #05080d; }
 .landing-wordmark { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; }
 .landing-wordmark span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px 12px 12px 3px; color: #07100d; background: var(--accent); box-shadow: 0 10px 32px rgba(25,182,173,.2); font-size: 19px; font-weight: 950; }
 .landing-wordmark strong { font-size: 25px; letter-spacing: -1px; }
+.country-switcher { display: flex; gap: 7px; margin: -10px 0 22px; }
+.country-switcher a { min-width: 54px; padding: 7px 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: #c3cad6; background: rgba(5,10,18,.5); font-size: 9px; font-weight: 850; letter-spacing: .4px; backdrop-filter: blur(12px); }
+.country-switcher a small { color: #78879b; font-size: 7px; }
+.country-switcher a.active { color: #07100d; border-color: var(--accent); background: var(--accent); }
+.country-switcher a.active small { color: #123f3c; }
 .landing-kicker { display: flex; align-items: center; gap: 12px; color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: 2.1px; }
 .landing-kicker:before { content: ""; width: 34px; height: 1px; background: var(--accent); box-shadow: 0 0 14px rgba(25,182,173,.8); }
 .landing-copy h1 { max-width: 590px; margin: 20px 0 18px; font-size: clamp(52px,5.3vw,84px); line-height: .88; letter-spacing: -.065em; text-wrap: balance; }

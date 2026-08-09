@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { CountryConfig } from "./country-config";
+import { countryLinks } from "./country-config";
 
 type Listing = {
   id: number;
@@ -206,8 +208,6 @@ const listingAvailability: Record<number, ListingAvailability> = {
   6: { sellingPlans: ["hourly_base", "selected_days", "peak_days", "weekly", "monthly"], availableHours: [9,10,11,12,13,14,15,16,17,18,19,20,21,22], peakHours: [], availableDays: weekDays, peakDays: ["Fri","Sat"] },
 };
 
-const formatMoney = (value: number) => new Intl.NumberFormat("en-AE").format(value);
-const formatMoneyWithFils = (value: number) => new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const campaignObjectives = ["Brand awareness", "Product launch", "Store visits", "Event promotion", "Special offer"];
 const emirates = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
 const emirateCardImages: Record<string, string> = {
@@ -530,6 +530,7 @@ const countBookingDaysInRange = (startValue: string, endValue: string, selectedW
 };
 
 type MarketplaceClientProps = {
+  country: CountryConfig;
   startCampaign: boolean;
   resetToken: string;
   adminEntry?: boolean;
@@ -755,7 +756,10 @@ const isVendorAccount = (user: AuthUser | null) =>
   user?.role === "billboard_owner" ||
   user?.companyName.trim().toLowerCase() === "asnads email test";
 
-export default function MarketplaceClient({ startCampaign, resetToken, adminEntry = false }: MarketplaceClientProps) {
+export default function MarketplaceClient({ country, startCampaign, resetToken, adminEntry = false }: MarketplaceClientProps) {
+  const currency = country.currency;
+  const formatMoney = (value: number) => new Intl.NumberFormat(country.locale).format(value);
+  const formatMoneyWithFils = (value: number) => new Intl.NumberFormat(country.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   const [query, setQuery] = useState("");
   const [marketEmirates, setMarketEmirates] = useState<string[]>([]);
   const [marketVenueTypes, setMarketVenueTypes] = useState<string[]>([]);
@@ -2563,17 +2567,20 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
     <main className={authUser ? "portal-mode" : "landing-mode"}>
       {!authReady ? <div className="auth-loading">Securing your ASNads session…</div> : !authUser ? (
         <section className="landing-gateway" aria-label="ASNads billboard marketplace">
-          <img src="/asnads-hero.png" alt="ASNads — Own the skyline, UAE billboard marketplace" />
+          <img src="/asnads-hero.png" alt={`ASNads — ${country.name} billboard marketplace`} />
           <div className="landing-shade" />
           <div className="landing-copy">
             <div className="landing-wordmark"><span>A</span><strong>ASNads</strong></div>
-            <div className="landing-kicker">THE UAE&apos;S OUTDOOR MEDIA MARKETPLACE</div>
-            <h1>Own Every Eyeline <em>Across the UAE.</em></h1>
-            <p>From major highways and iconic buildings to shopping malls and high-traffic locations—put your brand where the UAE looks.</p>
+            <nav className="country-switcher" aria-label="Choose country website">
+              {countryLinks.map((item) => <a key={item.code} className={item.code === country.code ? "active" : ""} href={`https://${item.domain}`}>{item.shortName}<small>{item.currency}</small></a>)}
+            </nav>
+            <div className="landing-kicker">{country.kicker}</div>
+            <h1>Own Every Eyeline <em>{country.headline}</em></h1>
+            <p>{country.description}</p>
             <div className="landing-reach" aria-label="ASNads marketplace coverage">
               <div><strong>380+</strong><span>Premium<br />Billboards</span></div>
               <div><strong>800+</strong><span>Digital<br />Kiosks</span></div>
-              <div><strong>7</strong><span>Emirates.<br />One Marketplace.</span></div>
+              <div><strong>{country.code === "ae" ? "7" : country.code === "in" ? "30+" : country.code === "uk" ? "4" : "50"}</strong><span>{country.coverageTitle}</span></div>
             </div>
           </div>
           <div className="landing-actions">
@@ -2711,7 +2718,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
               </div>
             </fieldset>
 
-            <label className="filter-range">Max price / 4 weeks (AED)<input aria-label="Maximum price for four weeks" type="range" min="10000" max="500000" step="10000" value={marketMaxPrice} onChange={(event) => setMarketMaxPrice(Number(event.target.value))} /><span>Up to AED {formatMoney(marketMaxPrice)}</span></label>
+            <label className="filter-range">Max price / 4 weeks ({currency})<input aria-label="Maximum price for four weeks" type="range" min="10000" max="500000" step="10000" value={marketMaxPrice} onChange={(event) => setMarketMaxPrice(Number(event.target.value))} /><span>Up to {currency} {formatMoney(marketMaxPrice)}</span></label>
 
             <fieldset className="filter-group">
               <legend>Availability</legend>
@@ -2729,7 +2736,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
             <div className="results-meta">
               <div className="results-count">
                 <strong>{visibleListings.length}</strong>
-                <span><b>Matching locations</b><small>Verified UAE outdoor media inventory</small></span>
+                <span><b>Matching locations</b><small>Verified {country.marketLabel} outdoor media inventory</small></span>
               </div>
               <label className="results-sort"><span>Sort by</span><select aria-label="Sort billboard locations"><option>Recommended</option><option>Price: low to high</option><option>Highest reach</option></select></label>
             </div>
@@ -2751,14 +2758,14 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                     <div className="listing-details"><span>{item.format}</span><span>{item.audience}</span></div>
                     <div className="vendor-line"><span>{item.vendor.charAt(0)}</span>{item.vendor}<b>✓</b></div>
                     <div className="listing-footer">
-                      <div><small>From</small><strong>AED {formatMoney(item.price)}</strong><small>/ week</small></div>
+                      <div><small>From</small><strong>{currency} {formatMoney(item.price)}</strong><small>/ week</small></div>
                       <button className="button button-outline" onClick={() => openCampaign(item)}>View & book</button>
                     </div>
                   </div>
                 </article>
               ))}
             </div>
-            {visibleListings.length === 0 && <div className="empty-state"><strong>No exact matches yet.</strong><span>Adjust the filters or reset them to see more UAE inventory.</span><button type="button" className="button button-dark" onClick={resetMarketplaceFilters}>Reset filters</button></div>}
+            {visibleListings.length === 0 && <div className="empty-state"><strong>No exact matches yet.</strong><span>Adjust the filters or reset them to see more {country.marketLabel} inventory.</span><button type="button" className="button button-dark" onClick={resetMarketplaceFilters}>Reset filters</button></div>}
           </div>
         </div>
       </section>
@@ -2776,7 +2783,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
 
       <footer>
         <a className="brand footer-brand" href="#inventory-map"><span className="brand-mark">A</span><span>ASNads</span></a>
-        <p>The UAE marketplace for impactful outdoor advertising.</p>
+        <p>The {country.marketLabel} marketplace for impactful outdoor advertising.</p>
         <div><a href="#marketplace">Marketplace</a><a href="#vendor-registration" onClick={(event) => { event.preventDefault(); openVendor(); }}>Vendors</a><a href="#how-it-works">How it works</a></div>
         <small>© 2026 ASNads. Built for advertisers and media owners.</small>
       </footer>
@@ -3311,7 +3318,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   </>}
                   <div className="price-preview">
                     <div><span>Advertiser price</span><small>{selectedPeriodRule.label} rate {peakAdjustment > 0 ? `+ ${peakAdjustment}% peak surcharge` : "· standard schedule"}</small></div>
-                    <strong>AED {formatMoney(calculatedPrice)}<small> / {billingPeriod}</small></strong>
+                    <strong>{currency} {formatMoney(calculatedPrice)}<small> / {billingPeriod}</small></strong>
                   </div>
                   <p className="pricing-advice"><b>How it works:</b> {isStaticBillboard ? "static pricing starts from the minimum 15-day rate. One month is calculated as two 15-day periods, with no weekly, peak-day or peak-hour charges." : "pricing starts from the hourly rate. A full day receives 5% off, a week receives 10% off and a month receives 20% off. Peak surcharges are added afterward for transparent pricing."}</p>
                 </div>
@@ -3508,7 +3515,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                               <strong>{listing.title}</strong><small>{listing.location}</small><em>{listing.category} · {listing.vendor}</em><i><b /> Owner offers {campaignTypeIsStatic ? "static booking" : campaignPlanTitles[listingPlan]}</i>
                               {!campaignTypeIsStatic && (listingPlan === "peak_hours" || listingPlan === "peak_days") && <div className="owner-slot-preview"><span>{listingPlan === "peak_hours" ? "Available peak hours" : "Available peak days"}</span><b>{listingPlan === "peak_hours" ? ownerSchedule.peakHours.map(formatHour).join(" · ") : ownerSchedule.peakDays.join(" · ")}</b></div>}
                             </div>
-                            <b>AED {formatMoney(planPrice)}<small>/{campaignTypeIsStatic ? staticCampaignDuration === "15" ? "15 days" : "30 days" : getPlanUnit(listingPlan)}</small></b>
+                            <b>{currency} {formatMoney(planPrice)}<small>/{campaignTypeIsStatic ? staticCampaignDuration === "15" ? "15 days" : "30 days" : getPlanUnit(listingPlan)}</small></b>
                           </button>
                         );
                       })}
@@ -3517,10 +3524,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   {campaignLocations.length > 0 && <div className="campaign-price-summary campaign-price-summary-with-schedule" aria-live="polite">
                     <div className="campaign-price-summary-head">
                       <div><span>SELECTED BILLBOARDS</span><strong>{campaignLocations.length} {campaignLocations.length === 1 ? "billboard" : "billboards"}</strong><small>Click any selected billboard again to remove it.</small></div>
-                      <div><span>{campaignNeedsHours && campaignHoursPerDay === 0 ? "COMBINED HOURLY RATE" : campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0) ? "COMBINED DAILY RATE" : "ESTIMATED CAMPAIGN TOTAL"}</span><strong>AED {formatMoney(campaignSelectionTotal)}</strong><small>{campaignNeedsHours ? campaignHoursPerDay > 0 ? `${campaignHoursPerDay} ${campaignHoursPerDay === 1 ? "hour" : "hours"} per day × ${campaignBookingDays} ${campaignBookingDays === 1 ? "day" : "days"}` : "Select the booking hours below" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${effectiveCampaignBookingDays} booking ${effectiveCampaignBookingDays === 1 ? "day" : "days"} · ${advertiserDays.join(" · ")}` : "Select valid dates and available days below" : `for ${campaignSelectionUnit}`}</small></div>
+                      <div><span>{campaignNeedsHours && campaignHoursPerDay === 0 ? "COMBINED HOURLY RATE" : campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0) ? "COMBINED DAILY RATE" : "ESTIMATED CAMPAIGN TOTAL"}</span><strong>{currency} {formatMoney(campaignSelectionTotal)}</strong><small>{campaignNeedsHours ? campaignHoursPerDay > 0 ? `${campaignHoursPerDay} ${campaignHoursPerDay === 1 ? "hour" : "hours"} per day × ${campaignBookingDays} ${campaignBookingDays === 1 ? "day" : "days"}` : "Select the booking hours below" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${effectiveCampaignBookingDays} booking ${effectiveCampaignBookingDays === 1 ? "day" : "days"} · ${advertiserDays.join(" · ")}` : "Select valid dates and available days below" : `for ${campaignSelectionUnit}`}</small></div>
                     </div>
                     <div className="campaign-price-lines">
-                      {campaignLocations.map((listing, index) => <div key={listing.id}><span>{index + 1}</span><div><strong>{listing.title}</strong><small>{listing.location} · {listing.vendor}</small></div><b>AED {formatMoney(getCampaignSelectionPrice(listing))}</b><button type="button" aria-label={`Remove ${listing.title}`} onClick={() => chooseCampaignLocation(listing)}>×</button></div>)}
+                      {campaignLocations.map((listing, index) => <div key={listing.id}><span>{index + 1}</span><div><strong>{listing.title}</strong><small>{listing.location} · {listing.vendor}</small></div><b>{currency} {formatMoney(getCampaignSelectionPrice(listing))}</b><button type="button" aria-label={`Remove ${listing.title}`} onClick={() => chooseCampaignLocation(listing)}>×</button></div>)}
                     </div>
                     {campaignNeedsHours && <div className="hourly-booking-calculator">
                       <div className="hourly-booking-heading">
@@ -3531,12 +3538,12 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                         {ownerApprovedHours.map((hour) => <button type="button" aria-pressed={advertiserHours.includes(hour)} key={hour} className={advertiserHours.includes(hour) ? "selected" : ""} onClick={() => toggleAdvertiserHour(hour)}>{formatHour(hour)}</button>)}
                       </div>
                       <div className="hourly-calculation-grid">
-                        <div><span>Combined hourly rate</span><strong>AED {formatMoney(campaignBaseRateTotal)}</strong></div>
+                        <div><span>Combined hourly rate</span><strong>{currency} {formatMoney(campaignBaseRateTotal)}</strong></div>
                         <div><span>Hours per day</span><strong>{campaignHoursPerDay}</strong></div>
                         <div><span>Booking days</span><strong>{campaignBookingDays}</strong></div>
                         <div><span>Total booked hours</span><strong>{campaignTotalBookedHours}</strong></div>
                       </div>
-                      <div className="hourly-formula"><span>Price calculation</span><strong>AED {formatMoney(campaignBaseRateTotal)} × {campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} × {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"} = AED {formatMoney(campaignHoursPerDay > 0 ? campaignSelectionTotal : 0)}</strong></div>
+                      <div className="hourly-formula"><span>Price calculation</span><strong>{currency} {formatMoney(campaignBaseRateTotal)} × {campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} × {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"} = {currency} {formatMoney(campaignHoursPerDay > 0 ? campaignSelectionTotal : 0)}</strong></div>
                     </div>}
                     {campaignNeedsDays && <div className="hourly-booking-calculator daily-booking-calculator">
                       <div className="hourly-booking-heading daily-booking-heading">
@@ -3551,17 +3558,17 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                         {ownerApprovedDays.map((day) => <button type="button" aria-pressed={advertiserDays.includes(day)} key={day} className={advertiserDays.includes(day) ? "selected" : ""} onClick={() => toggleAdvertiserDay(day)}>{day}</button>)}
                       </div>
                       <div className="hourly-calculation-grid daily-calculation-grid">
-                        <div><span>Combined daily rate</span><strong>AED {formatMoney(campaignBaseRateTotal)}</strong></div>
+                        <div><span>Combined daily rate</span><strong>{currency} {formatMoney(campaignBaseRateTotal)}</strong></div>
                         <div><span>Available days selected</span><strong>{advertiserDays.length}</strong></div>
                         <div><span>Booking days in date range</span><strong>{effectiveCampaignBookingDays}</strong></div>
                         <div><span>Billboards selected</span><strong>{campaignLocations.length}</strong></div>
                       </div>
-                      <div className="hourly-formula"><span>Price calculation</span><strong>AED {formatMoney(campaignBaseRateTotal)} daily rate × {effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} = AED {formatMoney(advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? campaignSelectionTotal : 0)}</strong></div>
+                      <div className="hourly-formula"><span>Price calculation</span><strong>{currency} {formatMoney(campaignBaseRateTotal)} daily rate × {effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} = {currency} {formatMoney(advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? campaignSelectionTotal : 0)}</strong></div>
                     </div>}
                     <div className="campaign-payment-summary">
-                      <div className="campaign-price-total"><span>{campaignNeedsHours ? campaignHoursPerDay > 0 ? "Estimated total media price" : "Select at least one hour to calculate the total" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? "Estimated total media price" : "Select valid dates and at least one available day" : "Combined estimated media price"}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoney(campaignSelectionTotal)}`} {!campaignNeedsHours && !campaignNeedsDays && <small>/ {campaignSelectionUnit}</small>}</strong></div>
-                      <div className="campaign-price-total campaign-vat-total"><span>UAE VAT (5%)</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoneyWithFils(campaignVatAmount)}`}</strong></div>
-                      <div className="campaign-price-total campaign-payable-total"><span>Total payable amount</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoneyWithFils(campaignPayableTotal)}`}</strong></div>
+                      <div className="campaign-price-total"><span>{campaignNeedsHours ? campaignHoursPerDay > 0 ? "Estimated total media price" : "Select at least one hour to calculate the total" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? "Estimated total media price" : "Select valid dates and at least one available day" : "Combined estimated media price"}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoney(campaignSelectionTotal)}`} {!campaignNeedsHours && !campaignNeedsDays && <small>/ {campaignSelectionUnit}</small>}</strong></div>
+                      <div className="campaign-price-total campaign-vat-total"><span>{country.vatLabel}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoneyWithFils(campaignVatAmount)}`}</strong></div>
+                      <div className="campaign-price-total campaign-payable-total"><span>Total payable amount</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoneyWithFils(campaignPayableTotal)}`}</strong></div>
                     </div>
                   </div>}
                   {campaignMissingInventory && <p className="campaign-validation-message" role="alert">Please show the matching inventory and select at least one billboard location.</p>}
@@ -3576,11 +3583,11 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   {!campaignTypeIsStatic && (!advertiserPlan || campaignLocations.length === 0) && <div className="owner-schedule-lock"><span>🔒</span><div><strong>Owner schedule unlocks after inventory selection</strong><small>Choose a booking type and at least one matching billboard above. Generic hours and days are no longer displayed.</small></div></div>}
                   {!campaignTypeIsStatic && campaignLocations.length > 0 && (advertiserPlan === "hourly_base" || advertiserPlan === "peak_hours") && <div className="campaign-owner-schedule hourly-booking-recap">
                     <div><span>HOURLY BOOKING SUMMARY</span><strong>{campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} per day for {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"}</strong><small>{advertiserHours.length > 0 ? [...advertiserHours].sort((a, b) => a - b).map(formatHour).join(" · ") : "Select the required hours in the price calculator above."}</small></div>
-                    <b>{advertiserHours.length > 0 ? `AED ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
+                    <b>{advertiserHours.length > 0 ? `${currency} ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
                   </div>}
                   {!campaignTypeIsStatic && campaignLocations.length > 0 && (advertiserPlan === "selected_days" || advertiserPlan === "peak_days") && <div className="campaign-owner-schedule hourly-booking-recap daily-booking-recap">
                     <div><span>DAILY BOOKING SUMMARY</span><strong>{effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} across {campaignLocations.length} {campaignLocations.length === 1 ? "billboard" : "billboards"}</strong><small>{campaignStartDate && campaignEndDate ? `${campaignStartDate} to ${campaignEndDate} · ${advertiserDays.join(" · ") || "select available days"}` : "Select the starting date, ending date and available days in the calculator above."}</small></div>
-                    <b>{advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `AED ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
+                    <b>{advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${currency} ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
                   </div>}
                   {campaignMissingOwnerSchedule && <p className="campaign-validation-message" role="alert">{campaignNeedsHours ? "Please select at least one owner-approved hour." : campaignDayRangeHasNoBookingDays ? "The selected date range does not contain any of the chosen available days." : "Please select at least one owner-approved day."}</p>}
                   {!campaignNeedsDays && campaignMissingDates && <p className="campaign-validation-message" role="alert">Please enter a valid start date in DD/MM/YYYY format.</p>}
@@ -3605,14 +3612,14 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                 <section className="campaign-name-inventory">
                   <div className="campaign-name-inventory-head">
                     <div><span>SELECTED BILLBOARDS</span><strong>Included in this campaign</strong></div>
-                    <b>AED {formatMoney(campaignSelectionTotal)}</b>
+                    <b>{currency} {formatMoney(campaignSelectionTotal)}</b>
                   </div>
                   <div className="campaign-name-inventory-list">
                     {campaignLocations.map((listing, index) => (
                       <div key={listing.id}>
                         <span>{index + 1}</span>
                         <div><strong>{listing.title}</strong><small>{listing.location} · {listing.category}</small></div>
-                        <b>AED {formatMoney(getCampaignSelectionPrice(listing))}</b>
+                        <b>{currency} {formatMoney(getCampaignSelectionPrice(listing))}</b>
                       </div>
                     ))}
                   </div>

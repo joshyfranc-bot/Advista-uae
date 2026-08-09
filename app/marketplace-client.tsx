@@ -648,7 +648,7 @@ const defaultAdminRoleDetails: Record<AdminRole, { label: string; work: string }
 };
 
 const adminDemoStaff: AdminStaff[] = [
-  { id: 1, fullName: "Joshy Francis", email: "admin@asnads.com", phone: "+971 50 000 0000", role: "super_admin", status: "active" },
+  { id: 1, fullName: "Joshy Francis", email: "joshycheeran@gmail.com", phone: "+971 50 000 0000", role: "super_admin", status: "active" },
   { id: 2, fullName: "Finance Team", email: "accounts@asnads.com", phone: "+971 50 000 0001", role: "accountant", status: "active" },
   { id: 3, fullName: "Creative Team", email: "creative@asnads.com", phone: "+971 50 000 0002", role: "creative", status: "invited" },
 ];
@@ -803,6 +803,7 @@ const isVendorAccount = (user: AuthUser | null) =>
   user?.companyName.trim().toLowerCase() === "asnads email test";
 
 const TEMPORARY_DEMO_PASSWORD = "ASNadsDemo2026!";
+const SUPER_ADMIN_EMAIL = "joshycheeran@gmail.com";
 
 export default function MarketplaceClient({ country, previewMode = false, startCampaign, resetToken, adminEntry = false }: MarketplaceClientProps) {
   const currency = country.currency;
@@ -1106,8 +1107,9 @@ export default function MarketplaceClient({ country, previewMode = false, startC
 
   useEffect(() => {
     const savedEmail = window.localStorage.getItem("asnads_remembered_email") ?? "";
-    setRememberedEmail(savedEmail);
-    setRememberLogin(Boolean(savedEmail));
+    const loginEmail = adminEntry ? SUPER_ADMIN_EMAIL : savedEmail;
+    setRememberedEmail(loginEmail);
+    setRememberLogin(Boolean(loginEmail));
 
     const pageParams = new URLSearchParams(window.location.search);
     if (pageParams.get("verified") === "1") {
@@ -1140,7 +1142,7 @@ export default function MarketplaceClient({ country, previewMode = false, startC
         window.localStorage.removeItem("asnads_persistent_session");
       })
       .finally(() => setAuthReady(true));
-  }, []);
+  }, [adminEntry]);
 
   useEffect(() => {
     if (!adminEntry || !authReady) return;
@@ -3396,5 +3398,3 @@ export default function MarketplaceClient({ country, previewMode = false, startC
                       {visiblePeriods.map((period) => {
                         const rule = isStaticBillboard ? staticPeriodRules[period as "week" | "month"] : periodRules[period];
                         return (
-                        <label key={period} className={billingPeriod === period ? "selected" : ""}>
-                          <input type="radio" name="billing-period" value={period} checked={billingPeriod === period} onChange={() => setBillingPeriod(period)} />

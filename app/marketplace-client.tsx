@@ -709,7 +709,7 @@ const phiDigitalLocations: VendorInventoryLocation[] = [
   ...[1, 2, 3, 4, 5, 6].map((number, index) => ({ page: 26 + index, name: `Al Khail Road ${number}`, road: "Al Khail Road", type: "Double-sided digital sign", size: "16m W × 8m H", landmark: "Near Al Barsha Police Station", traffic: "13M viewers/month", map: ["https://maps.app.goo.gl/oeMvFyPhvkh6dn9r8", "https://maps.app.goo.gl/omUpKRZnjPp24YNP8", "https://maps.app.goo.gl/HcTudBWcwfdhoHe68", "https://maps.app.goo.gl/8qrmqKkfmohxTyNu8", "https://maps.app.goo.gl/Qg9adLhf4iFBDkLd6", "https://maps.app.goo.gl/5mHdxTq87fj3JaWx8"][index], upcoming: true })),
 ];
 
-const ASNADS_API = "https://api.asnads.com";
+const ASNADS_API = "/api/backend";
 
 const adminDemoCompanies: AdminCompany[] = [
   { id: 1, companyName: "ASNads Test Company", businessSector: "Retail", contactPerson: "Joshy Francis", contactNumber: "+971 50 000 0000", whatsappNumber: "+971 50 000 0000", companyEmail: "joshy@emiratesexhibits.com", accountType: "advertiser", accountStatus: "active", emailVerified: true },

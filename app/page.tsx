@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: PageProps) {
   return (
     <MarketplaceClient
       country={country}
-      previewMode={previewMode || isCentralAdminHost}
+      previewMode={previewMode}
       startCampaign={isCentralAdminHost ? false : params.start_campaign === "1"}
       resetToken={isCentralAdminHost ? "" : params.reset_token || ""}
       adminEntry={isCentralAdminHost}

@@ -1,6 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { CountryConfig } from "./country-config";
+import { countryLinks } from "./country-config";
+import { countryLocationDirectories } from "./country-locations";
+
+const countryFlags: Record<string, string> = {
+  ae: "🇦🇪",
+  in: "🇮🇳",
+  uk: "🇬🇧",
+  us: "🇺🇸",
+};
 
 type Listing = {
   id: number;
@@ -206,8 +216,6 @@ const listingAvailability: Record<number, ListingAvailability> = {
   6: { sellingPlans: ["hourly_base", "selected_days", "peak_days", "weekly", "monthly"], availableHours: [9,10,11,12,13,14,15,16,17,18,19,20,21,22], peakHours: [], availableDays: weekDays, peakDays: ["Fri","Sat"] },
 };
 
-const formatMoney = (value: number) => new Intl.NumberFormat("en-AE").format(value);
-const formatMoneyWithFils = (value: number) => new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const campaignObjectives = ["Brand awareness", "Product launch", "Store visits", "Event promotion", "Special offer"];
 const emirates = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
 const emirateCardImages: Record<string, string> = {
@@ -350,23 +358,59 @@ const getMarketplaceListingImage = (listing: Listing) => {
   const emirate = emirates.find((name) => listing.location.includes(name));
   return emirate ? emirateCardImages[emirate] : getCampaignImage(listing.category);
 };
-const inventoryMapPins = [
-  { emirate: "Abu Dhabi", reach: "970k", sites: 92, latitude: 24.4539, longitude: 54.3773 },
-  { emirate: "Dubai", reach: "1.8M", sites: 214, latitude: 25.2048, longitude: 55.2708 },
-  { emirate: "Sharjah", reach: "640k", sites: 116, latitude: 25.3463, longitude: 55.4209 },
-  { emirate: "Ajman", reach: "260k", sites: 68, latitude: 25.4052, longitude: 55.5136 },
-  { emirate: "Umm Al Quwain", reach: "90k", sites: 34, latitude: 25.5647, longitude: 55.5552 },
-  { emirate: "Ras Al Khaimah", reach: "180k", sites: 72, latitude: 25.8007, longitude: 55.9762 },
-  { emirate: "Fujairah", reach: "140k", sites: 44, latitude: 25.1288, longitude: 56.3265 },
-];
+type InventoryMapPin = { market: string; reach: string; sites: number; latitude: number; longitude: number };
+type InventoryMapConfig = { label: string; coverage: string; total: string; center: [number, number]; zoom: number; pins: InventoryMapPin[] };
 
-function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (emirate: string) => void; onExploreAll: () => void }) {
+const countryInventoryMaps: Record<CountryConfig["code"], InventoryMapConfig> = {
+  ae: {
+    label: "7 EMIRATES", coverage: "LIVE UAE COVERAGE", total: "640+ verified billboard locations", center: [24.95, 55.35], zoom: 7,
+    pins: [
+      { market: "Abu Dhabi", reach: "970k", sites: 92, latitude: 24.4539, longitude: 54.3773 },
+      { market: "Dubai", reach: "1.8M", sites: 214, latitude: 25.2048, longitude: 55.2708 },
+      { market: "Sharjah", reach: "640k", sites: 116, latitude: 25.3463, longitude: 55.4209 },
+      { market: "Ajman", reach: "260k", sites: 68, latitude: 25.4052, longitude: 55.5136 },
+      { market: "Umm Al Quwain", reach: "90k", sites: 34, latitude: 25.5647, longitude: 55.5552 },
+      { market: "Ras Al Khaimah", reach: "180k", sites: 72, latitude: 25.8007, longitude: 55.9762 },
+      { market: "Fujairah", reach: "140k", sites: 44, latitude: 25.1288, longitude: 56.3265 },
+    ],
+  },
+  in: {
+    label: "MAJOR INDIAN MARKETS", coverage: "LIVE INDIA COVERAGE", total: "1,850+ verified billboard locations", center: [22.6, 79.0], zoom: 4,
+    pins: [
+      { market: "Mumbai", reach: "4.8M", sites: 420, latitude: 19.076, longitude: 72.8777 },
+      { market: "Delhi", reach: "5.2M", sites: 510, latitude: 28.6139, longitude: 77.209 },
+      { market: "Bengaluru", reach: "3.1M", sites: 345, latitude: 12.9716, longitude: 77.5946 },
+      { market: "Chennai", reach: "2.6M", sites: 288, latitude: 13.0827, longitude: 80.2707 },
+    ],
+  },
+  uk: {
+    label: "UK CITY MARKETS", coverage: "LIVE UK COVERAGE", total: "920+ verified billboard locations", center: [54.5, -3.2], zoom: 5,
+    pins: [
+      { market: "London", reach: "4.6M", sites: 410, latitude: 51.5074, longitude: -0.1278 },
+      { market: "Manchester", reach: "1.8M", sites: 196, latitude: 53.4808, longitude: -2.2426 },
+      { market: "Birmingham", reach: "1.6M", sites: 174, latitude: 52.4862, longitude: -1.8904 },
+      { market: "Glasgow", reach: "1.2M", sites: 140, latitude: 55.8642, longitude: -4.2518 },
+    ],
+  },
+  us: {
+    label: "MAJOR US MARKETS", coverage: "LIVE USA COVERAGE", total: "3,400+ verified billboard locations", center: [38.2, -96.5], zoom: 4,
+    pins: [
+      { market: "New York", reach: "6.8M", sites: 780, latitude: 40.7128, longitude: -74.006 },
+      { market: "Los Angeles", reach: "5.4M", sites: 690, latitude: 34.0522, longitude: -118.2437 },
+      { market: "Chicago", reach: "3.4M", sites: 520, latitude: 41.8781, longitude: -87.6298 },
+      { market: "Miami", reach: "2.7M", sites: 390, latitude: 25.7617, longitude: -80.1918 },
+    ],
+  },
+};
+
+function CountryInventoryMap({ country, onSelectMarket, onExploreAll }: { country: CountryConfig; onSelectMarket: (market: string) => void; onExploreAll: () => void }) {
   const mapElementRef = useRef<HTMLDivElement>(null);
-  const selectEmirateRef = useRef(onSelectEmirate);
+  const selectMarketRef = useRef(onSelectMarket);
+  const mapConfig = countryInventoryMaps[country.code];
 
   useEffect(() => {
-    selectEmirateRef.current = onSelectEmirate;
-  }, [onSelectEmirate]);
+    selectMarketRef.current = onSelectMarket;
+  }, [onSelectMarket]);
 
   useEffect(() => {
     let disposed = false;
@@ -376,9 +420,9 @@ function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (
       if (disposed || !mapElementRef.current) return;
 
       map = leaflet.map(mapElementRef.current, {
-        center: [24.95, 55.35],
-        zoom: 7,
-        minZoom: 6,
+        center: mapConfig.center,
+        zoom: mapConfig.zoom,
+        minZoom: 2,
         maxZoom: 12,
         scrollWheelZoom: false,
         zoomControl: true,
@@ -391,7 +435,7 @@ function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (
       }).addTo(map);
 
       const bounds = leaflet.latLngBounds([]);
-      inventoryMapPins.forEach((pin) => {
+      mapConfig.pins.forEach((pin) => {
         const marker = leaflet.circleMarker([pin.latitude, pin.longitude], {
           radius: 9,
           color: "#ffffff",
@@ -400,10 +444,10 @@ function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (
           fillOpacity: 1,
         });
         marker.bindTooltip(
-          `<strong>${pin.emirate}</strong><span>${pin.reach} weekly reach · ${pin.sites} locations</span>`,
+          `<strong>${pin.market}</strong><span>${pin.reach} weekly reach · ${pin.sites} locations</span>`,
           { className: "inventory-map-tooltip", direction: "top", offset: [0, -11] },
         );
-        marker.on("click", () => selectEmirateRef.current(pin.emirate));
+        marker.on("click", () => selectMarketRef.current(pin.market));
         marker.addTo(map!);
         bounds.extend([pin.latitude, pin.longitude]);
       });
@@ -411,7 +455,7 @@ function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (
       map.fitBounds(bounds, {
         paddingTopLeft: [55, 55],
         paddingBottomRight: [300, 105],
-        maxZoom: 8,
+        maxZoom: country.code === "ae" ? 8 : country.code === "uk" ? 6 : 5,
       });
     });
 
@@ -419,23 +463,23 @@ function UaeInventoryMap({ onSelectEmirate, onExploreAll }: { onSelectEmirate: (
       disposed = true;
       map?.remove();
     };
-  }, []);
+  }, [country.code, mapConfig]);
 
   return (
     <div className="inventory-map-frame">
-      <div ref={mapElementRef} className="inventory-map-canvas" aria-label="Interactive UAE billboard inventory map" />
+      <div ref={mapElementRef} className="inventory-map-canvas" aria-label={`Interactive ${country.name} billboard inventory map`} />
       <div className="inventory-map-shade" />
-      <div className="inventory-map-label"><span>●</span> LIVE UAE INVENTORY <b>—</b> SELECT A MARKER</div>
-      <aside className="inventory-map-emirates" aria-label="Select an Emirate from the map">
-        <div><span>7 EMIRATES</span><strong>Choose a market</strong></div>
-        {inventoryMapPins.map((pin) => (
-          <button type="button" key={pin.emirate} onClick={() => onSelectEmirate(pin.emirate)}>
-            <span>{pin.emirate}</span><small>{pin.sites} locations</small>
+      <div className="inventory-map-label"><span>●</span> LIVE {country.shortName.toUpperCase()} INVENTORY <b>—</b> SELECT A MARKER</div>
+      <aside className="inventory-map-emirates" aria-label={`Select a ${country.regionLabel.toLowerCase()} from the map`}>
+        <div><span>{mapConfig.label}</span><strong>Choose a market</strong></div>
+        {mapConfig.pins.map((pin) => (
+          <button type="button" key={pin.market} onClick={() => onSelectMarket(pin.market)}>
+            <span>{pin.market}</span><small>{pin.sites} locations</small>
           </button>
         ))}
       </aside>
       <div className="inventory-map-summary">
-        <div><span>LIVE UAE COVERAGE</span><strong>640+ verified billboard locations</strong></div>
+        <div><span>{mapConfig.coverage}</span><strong>{mapConfig.total}</strong></div>
         <button type="button" onClick={onExploreAll}>Explore all inventory <span>→</span></button>
       </div>
     </div>
@@ -530,6 +574,8 @@ const countBookingDaysInRange = (startValue: string, endValue: string, selectedW
 };
 
 type MarketplaceClientProps = {
+  country: CountryConfig;
+  previewMode?: boolean;
   startCampaign: boolean;
   resetToken: string;
   adminEntry?: boolean;
@@ -685,6 +731,7 @@ type BillboardIdentity = {
   mallName: string;
   nearbyShop: string;
   emirate: string;
+  city: string;
   location: string;
   landmark: string;
   exitNumber: string;
@@ -709,7 +756,7 @@ type PriceProfile = {
   monthly: string;
 };
 
-const emptyBillboardIdentity = (vendorNumber: number): BillboardIdentity => ({ billboardType: "", mallName: "", nearbyShop: "", emirate: "", location: "", landmark: "", exitNumber: "", vendorNumber: String(vendorNumber), hourlyAudience: "", mapsLink: "", latitude: "", longitude: "" });
+const emptyBillboardIdentity = (vendorNumber: number): BillboardIdentity => ({ billboardType: "", mallName: "", nearbyShop: "", emirate: "", city: "", location: "", landmark: "", exitNumber: "", vendorNumber: String(vendorNumber), hourlyAudience: "", mapsLink: "", latitude: "", longitude: "" });
 const emptyPriceProfile = (): PriceProfile => ({ hourly: "", daily: "", weekly: "", monthly: "" });
 
 const audienceTotals = (hourlyInput: string) => {
@@ -755,7 +802,53 @@ const isVendorAccount = (user: AuthUser | null) =>
   user?.role === "billboard_owner" ||
   user?.companyName.trim().toLowerCase() === "asnads email test";
 
-export default function MarketplaceClient({ startCampaign, resetToken, adminEntry = false }: MarketplaceClientProps) {
+const TEMPORARY_DEMO_PASSWORD = "ASNadsDemo2026!";
+
+export default function MarketplaceClient({ country, previewMode = false, startCampaign, resetToken, adminEntry = false }: MarketplaceClientProps) {
+  const currency = country.currency;
+  const landingHeroImage = country.code === "in"
+    ? "/india-hero-option1.png"
+    : country.code === "uk"
+      ? "/uk-hero-futuristic.png"
+      : country.code === "us"
+        ? "/us-future-uploaded.png"
+        : "/asnads-hero.png";
+  const marketRegions = Object.keys(country.regions);
+  const marketAreas = country.regions;
+  const locationDirectory = countryLocationDirectories[country.code];
+  const administrativeDivisions = Object.keys(locationDirectory.divisions);
+  const primaryRoad = country.roadExamples[0];
+  const secondaryRoad = country.roadExamples[1];
+  const countryListings = useMemo<Listing[]>(() => {
+    if (country.code === "ae") return listings;
+    const areas = Object.entries(country.regions).flatMap(([region, names]) => names.map((name) => ({ region, name })));
+    return listings.map((listing, index) => {
+      const area = areas[index % areas.length];
+      return {
+        ...listing,
+        title: `${area.name} ${listing.category === "Mall Billboard" ? "Digital Screen" : listing.category === "Building" ? "Landmark Display" : "Billboard"}`,
+        location: `${area.name}, ${area.region}`,
+        vendor: `${area.region} Media Network`,
+      };
+    });
+  }, [country]);
+  const countryVendorInventory = useMemo<VendorInventoryLocation[]>(() => {
+    if (country.code === "ae") return phiDigitalLocations;
+    const regions = Object.keys(country.regions);
+    return phiDigitalLocations.slice(0, 8).map((location, index) => {
+      const region = regions[index % regions.length];
+      const road = country.roadExamples[index % country.roadExamples.length];
+      return {
+        ...location,
+        name: `${region} ${index % 2 === 0 ? "Gateway" : "Digital"}`,
+        road,
+        landmark: `${road}, ${region}`,
+        map: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${road}, ${region}, ${country.name}`)}`,
+      };
+    });
+  }, [country]);
+  const formatMoney = (value: number) => new Intl.NumberFormat(country.locale).format(value);
+  const formatMoneyWithFils = (value: number) => new Intl.NumberFormat(country.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   const [query, setQuery] = useState("");
   const [marketEmirates, setMarketEmirates] = useState<string[]>([]);
   const [marketVenueTypes, setMarketVenueTypes] = useState<string[]>([]);
@@ -822,7 +915,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const [advertiserPortalTab, setAdvertiserPortalTab] = useState<"overview" | "campaigns" | "adgroups" | "ads" | "billboards" | "billing">("overview");
   const [, setInventorySyncVersion] = useState(0);
   const [publishedPhiPages, setPublishedPhiPages] = useState<number[]>([]);
-  const [vendorInventory, setVendorInventory] = useState<VendorInventoryLocation[]>(phiDigitalLocations);
+  const [vendorInventory, setVendorInventory] = useState<VendorInventoryLocation[]>(countryVendorInventory);
   const [vendorBillboardEditor, setVendorBillboardEditor] = useState<VendorInventoryLocation | null>(null);
   const [vendorBillboardPrices, setVendorBillboardPrices] = useState<Record<number, VendorBillboardPricing>>({});
   const [lastVendorSubmissionCount, setLastVendorSubmissionCount] = useState(0);
@@ -1454,7 +1547,39 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
     setAuthSubmitting(true);
     setAuthError("");
     const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim().toLowerCase();
+    const password = String(form.get("password") ?? "");
     try {
+      const demoMatch = previewMode
+        ? email.match(/^(vendor|advertiser|admin)@(asnads\.com|(?:ae|in|uk|us)\.asnads\.com)$/)
+        : null;
+      if (demoMatch && password === TEMPORARY_DEMO_PASSWORD) {
+        const demoRole = demoMatch[1];
+        const role = demoRole === "vendor" ? "billboard_owner" : demoRole;
+        const requiredPurpose = demoRole === "vendor" ? "owner" : demoRole;
+        if (authPurpose !== requiredPurpose) throw new Error(`Open the ${demoRole === "vendor" ? "vendor" : demoRole} login before using this test account.`);
+        const demoUser: AuthUser = {
+          id: 9000,
+          companyId: 9000,
+          companyName: `ASNads ${country.shortName} Demo`,
+          fullName: `${country.shortName} ${demoRole[0].toUpperCase()}${demoRole.slice(1)} Tester`,
+          email,
+          role,
+          accountStatus: "active",
+          contactNumber: country.phonePlaceholder,
+          whatsappNumber: country.phonePlaceholder,
+        };
+        window.sessionStorage.setItem("asnads_demo_session", `${demoRole}-${country.code}`);
+        setAuthUser(demoUser);
+        setAuthOpen(false);
+        if (demoRole === "vendor") {
+          setVendorDashboardTab("overview");
+          setVendorDashboardOpen(true);
+        }
+        if (demoRole === "admin") setAdminPanelOpen(true);
+        notify(`Temporary ${country.shortName} ${demoRole} portal opened.`);
+        return;
+      }
       const response = await fetch(`${ASNADS_API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1466,7 +1591,6 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
         await fetch(`${ASNADS_API}/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${result.token}` } }).catch(() => undefined);
         throw new Error("This account does not have administrator access.");
       }
-      const email = String(form.get("email") ?? "").trim().toLowerCase();
       const shouldRemember = form.get("remember") === "on";
       if (shouldRemember) {
         window.localStorage.setItem("asnads_persistent_session", result.token);
@@ -1716,7 +1840,9 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
       facing: location.landmark,
       illumination: "Digital LED",
     }));
-  const effectiveCampaignInventory = [...campaignInventory, ...publishedPhiListings];
+  const effectiveCampaignInventory = country.code === "ae"
+    ? [...campaignInventory, ...publishedPhiListings]
+    : countryListings;
   const campaignLocations = effectiveCampaignInventory.filter((listing) => campaignLocationIds.includes(String(listing.id)));
   const campaignAdGroups = Array.from(
     campaignLocations.reduce((groups, listing) => {
@@ -1736,7 +1862,8 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const campaignSelectedCategories = campaignLocations.length > 0 ? campaignLocations.map((listing) => listing.category) : preferredBillboardTypes;
   const campaignTypeCode = [...new Set(campaignSelectedCategories.map((category) => campaignBillboardCodes[category] ?? cleanCode(category, 2)))].filter(Boolean).join("") || "XX";
   const campaignEmiratesCode = campaignEmirates.map((emirate) => campaignEmirateCodes[emirate] ?? cleanCode(emirate, 1)).join("") || "X";
-  const campaignNamePrefix = `AE-${campaignTypeCode}-${campaignEmiratesCode}`;
+  const campaignCountryCode = country.code.toUpperCase();
+  const campaignNamePrefix = `${campaignCountryCode}-${campaignTypeCode}-${campaignEmiratesCode}`;
   const campaignCustomNameCode = campaignCustomName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   const finalCampaignName = campaignCustomNameCode ? `${campaignNamePrefix}-${campaignCustomNameCode}` : campaignNamePrefix;
   const campaignCreativeRequirements = campaignLocations.map(getCampaignCreativeRequirement);
@@ -1758,11 +1885,11 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const campaignCreativeResolutionReady = campaignCreativeMetadata && selectedCreativeRequirement
     ? campaignCreativeMetadata.width >= selectedCreativeRequirement.width && campaignCreativeMetadata.height >= selectedCreativeRequirement.height
     : null;
-  const allCampaignEmiratesSelected = campaignEmirates.length === emirates.length;
-  const campaignAreaOptions = campaignEmirates.flatMap((emirate) => emirateAreas[emirate] ?? []);
+  const allCampaignEmiratesSelected = campaignEmirates.length === marketRegions.length;
+  const campaignAreaOptions = campaignEmirates.flatMap((region) => marketAreas[region] ?? []);
   const campaignMarketLabel = campaignEmirates.length === 1
     ? campaignEmirates[0]
-    : `${campaignEmirates.length} selected Emirates`;
+    : `${campaignEmirates.length} selected ${country.regionLabel}s`;
   const locationFilteredBillboards = effectiveCampaignInventory.filter((listing) =>
     (campaignEmirates.length === 0 || campaignEmirates.some((emirate) => listing.location.includes(emirate))) &&
     (!campaignArea || listing.location.includes(campaignArea))
@@ -1839,7 +1966,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const calendarDayCount = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
   const calendarCells: Array<number | null> = [...Array(calendarFirstOffset).fill(null), ...Array.from({ length: calendarDayCount }, (_, index) => index + 1)];
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const calendarLabel = calendarMonth.toLocaleDateString("en-AE", { month: "long", year: "numeric" });
+  const calendarLabel = calendarMonth.toLocaleDateString(country.locale, { month: "long", year: "numeric" });
 
   const handleInventoryTypeChange = (value: string) => {
     setInventoryType(value);
@@ -1936,6 +2063,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
 
   const updateBillboardIdentity = (index: number, field: keyof BillboardIdentity, value: string) => {
     setBillboardIdentities((current) => current.map((identity, identityIndex) => identityIndex === index ? { ...identity, [field]: value } : identity));
+  };
+
+  const updateBillboardDivision = (index: number, division: string) => {
+    setBillboardIdentities((current) => current.map((identity, identityIndex) => identityIndex === index ? { ...identity, emirate: division, city: "" } : identity));
   };
 
   const updateBillboardType = (index: number, billboardType: string) => {
@@ -2118,7 +2249,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
     setCampaignTradeLicenseName("TEST-trade-license.pdf");
     setCampaignVatCertificateName("TEST-vat-certificate.pdf");
     setCampaignPermissionLetterName("TEST-permission-letter.pdf");
-    setCampaignEmirates(["Dubai"]);
+    setCampaignEmirates([marketRegions[0]]);
     setPreferredBillboardTypes(["Digital Billboard"]);
     setCampaignMediaFormat("digital");
     setCampaignPlacement("road");
@@ -2201,12 +2332,12 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const toggleCampaignEmirate = (emirate: string) => {
     setCampaignEmirates((current) => current.includes(emirate)
       ? current.filter((item) => item !== emirate)
-      : emirates.filter((item) => current.includes(item) || item === emirate));
+      : marketRegions.filter((item) => current.includes(item) || item === emirate));
     resetCampaignMarketSelection();
   };
 
   const toggleAllCampaignEmirates = () => {
-    setCampaignEmirates((current) => current.length === emirates.length ? [] : [...emirates]);
+    setCampaignEmirates((current) => current.length === marketRegions.length ? [] : [...marketRegions]);
     resetCampaignMarketSelection();
   };
 
@@ -2262,9 +2393,9 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   const formatHour = formatHourLabel;
 
   const marketplaceLocationOptions = useMemo(() => {
-    const sourceEmirates = marketEmirates.length > 0 ? marketEmirates : emirates;
-    return Array.from(new Set(sourceEmirates.flatMap((emirate) => emirateAreas[emirate] ?? [])));
-  }, [marketEmirates]);
+    const sourceRegions = marketEmirates.length > 0 ? marketEmirates : marketRegions;
+    return Array.from(new Set(sourceRegions.flatMap((region) => marketAreas[region] ?? [])));
+  }, [marketEmirates, country]);
 
   const visibleListings = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -2343,7 +2474,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
         return {
           page: 5,
           name: createBillboardName(vendorShortName || "PHI", identity) || `Billboard ${vendorInventory.length + index + 1}`,
-          road: identity.location || identity.mallName || identity.emirate,
+          road: identity.location || identity.mallName || identity.city || identity.emirate,
           type: identity.billboardType || "Digital billboard",
           size: identity.billboardType === "Digital Kiosk" ? "Kiosk size entered in vendor form" : "Billboard dimensions entered in vendor form",
           landmark: identity.nearbyShop || identity.landmark || (identity.exitNumber ? `Exit ${identity.exitNumber}` : "Location details submitted"),
@@ -2562,18 +2693,21 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
   return (
     <main className={authUser ? "portal-mode" : "landing-mode"}>
       {!authReady ? <div className="auth-loading">Securing your ASNads session…</div> : !authUser ? (
-        <section className="landing-gateway" aria-label="ASNads billboard marketplace">
-          <img src="/asnads-hero.png" alt="ASNads — Own the skyline, UAE billboard marketplace" />
+        <section className={`landing-gateway ${country.code === "in" ? "india-landing india-option-1" : country.code === "uk" ? "uk-landing" : country.code === "us" ? "us-landing us-future" : ""}`} aria-label="ASNads billboard marketplace">
+          <img src={landingHeroImage} alt={`ASNads — ${country.name} billboard marketplace`} />
           <div className="landing-shade" />
           <div className="landing-copy">
             <div className="landing-wordmark"><span>A</span><strong>ASNads</strong></div>
-            <div className="landing-kicker">THE UAE&apos;S OUTDOOR MEDIA MARKETPLACE</div>
-            <h1>Own Every Eyeline <em>Across the UAE.</em></h1>
-            <p>From major highways and iconic buildings to shopping malls and high-traffic locations—put your brand where the UAE looks.</p>
+            <nav className="country-switcher" aria-label="Choose country website">
+              {countryLinks.map((item) => <a key={item.code} className={item.code === country.code ? "active" : ""} href={previewMode ? `/?country=${item.code}` : `https://${item.domain}`}><span className="country-flag" aria-hidden="true">{countryFlags[item.code]}</span><b>{item.shortName}</b></a>)}
+            </nav>
+            <div className="landing-kicker">{country.kicker}</div>
+            <h1>Own Every Eyeline <em>{country.headline}</em></h1>
+            <p>{country.description}</p>
             <div className="landing-reach" aria-label="ASNads marketplace coverage">
               <div><strong>380+</strong><span>Premium<br />Billboards</span></div>
               <div><strong>800+</strong><span>Digital<br />Kiosks</span></div>
-              <div><strong>7</strong><span>Emirates.<br />One Marketplace.</span></div>
+              <div><strong>{country.code === "ae" ? "7" : country.code === "in" ? "30+" : country.code === "uk" ? "4" : "50"}</strong><span>{country.coverageTitle}</span></div>
             </div>
           </div>
           <div className="landing-actions">
@@ -2587,16 +2721,19 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
         <section className="admin-workspace" aria-label="ASNads administration">
           <header className="admin-topbar">
             <div className="auth-brand"><span>A</span><div><strong>ASNads</strong><small>ADMINISTRATOR CONSOLE</small></div></div>
+            <nav className="admin-country-switcher" aria-label="Choose country administration portal">
+              {countryLinks.map((item) => <a key={item.code} className={item.code === country.code ? "active" : ""} href={`/admin?country=${item.code}`}><span className="country-flag" aria-hidden="true">{countryFlags[item.code]}</span><b>{item.shortName}</b></a>)}
+            </nav>
             <div><button className="admin-back" type="button" onClick={() => setAdminPanelOpen(false)}>← Marketplace</button><button className="admin-signout" type="button" onClick={signOut}>Log out</button></div>
           </header>
           <div className="admin-shell">
-            <aside className="admin-sidebar"><span>CONTROL CENTRE</span><strong>Administration</strong><button className={adminTab === "advertiser" ? "active" : ""} type="button" onClick={() => setAdminTab("advertiser")}>Advertiser companies <b>{adminCompanies.filter((item) => item.accountType === "advertiser").length}</b></button><button className={adminTab === "billboard_owner" ? "active" : ""} type="button" onClick={() => setAdminTab("billboard_owner")}>Inventory companies <b>{adminCompanies.filter((item) => item.accountType === "billboard_owner").length}</b></button><button className={inventoryApprovalsOpen ? "active" : ""} type="button" onClick={() => setInventoryApprovalsOpen(true)}>Inventory approvals <b>{vendorInventory.length - publishedPhiPages.length}</b></button><button className={adminTab === "staff" ? "active" : ""} type="button" onClick={() => setAdminTab("staff")}>Admin people &amp; roles <b>{adminStaff.length}</b></button><span className="admin-sidebar-section">BILLING</span><button className={adminTab === "vendor_billing" ? "active" : ""} type="button" onClick={() => setAdminTab("vendor_billing")}>Vendor billing <b>{vendorBillingDemo.length}</b></button><button className={adminTab === "advertiser_billing" ? "active" : ""} type="button" onClick={() => setAdminTab("advertiser_billing")}>Advertiser billing <b>{advertiserBillingDemo.length}</b></button></aside>
+            <aside className="admin-sidebar"><span>{country.shortName} CONTROL CENTRE</span><strong>{country.name}</strong><div className="admin-market-badge"><i>{country.code.toUpperCase()}</i><span><b>{country.currency}</b>Active administration</span></div><button className={adminTab === "advertiser" ? "active" : ""} type="button" onClick={() => setAdminTab("advertiser")}>Advertiser companies <b>{adminCompanies.filter((item) => item.accountType === "advertiser").length}</b></button><button className={adminTab === "billboard_owner" ? "active" : ""} type="button" onClick={() => setAdminTab("billboard_owner")}>Inventory companies <b>{adminCompanies.filter((item) => item.accountType === "billboard_owner").length}</b></button><button className={inventoryApprovalsOpen ? "active" : ""} type="button" onClick={() => setInventoryApprovalsOpen(true)}>Inventory approvals <b>{vendorInventory.length - publishedPhiPages.length}</b></button><button className={adminTab === "staff" ? "active" : ""} type="button" onClick={() => setAdminTab("staff")}>Admin people &amp; roles <b>{adminStaff.length}</b></button><span className="admin-sidebar-section">BILLING</span><button className={adminTab === "vendor_billing" ? "active" : ""} type="button" onClick={() => setAdminTab("vendor_billing")}>Vendor billing <b>{vendorBillingDemo.length}</b></button><button className={adminTab === "advertiser_billing" ? "active" : ""} type="button" onClick={() => setAdminTab("advertiser_billing")}>Advertiser billing <b>{advertiserBillingDemo.length}</b></button></aside>
             <section className="admin-content">
-              <div className="admin-heading"><div><span>ADMINISTRATOR ACCESS</span><h1>{adminTab === "advertiser" ? "Advertising companies" : adminTab === "billboard_owner" ? "Inventory companies" : adminTab === "staff" ? "Admin people & roles" : adminTab === "vendor_billing" ? "Vendor billing" : "Advertiser billing"}</h1><p>{adminTab === "staff" ? "Create and edit roles, then assign each person only the work they are responsible for." : adminTab === "vendor_billing" ? "Track amounts payable to billboard vendors, payout dates and payment status." : adminTab === "advertiser_billing" ? "Track advertiser invoices, collections, due dates and outstanding balances." : "Review verified company details, add a new company account or remove an account when required."}</p></div>{(adminTab === "advertiser" || adminTab === "billboard_owner" || adminTab === "staff") && <div className="admin-actions">{adminTab !== "staff" && <button type="button" className="admin-refresh" onClick={() => void loadAdminCompanies()} disabled={adminLoading}>{adminLoading ? "Loading…" : "Refresh"}</button>}{adminTab === "staff" && <button type="button" className="admin-refresh" onClick={() => { setEditingAdminRole(null); setAdminRoleEditorOpen(true); }}>+ Add role</button>}<button type="button" className="admin-add" onClick={() => { if (adminTab === "staff") { setEditingAdminStaff(null); setAdminStaffAddOpen(true); } else setAdminAddOpen(true); setAdminError(""); }}>{adminTab === "staff" ? "+ Add admin person" : "+ Add company"}</button></div>}</div>
+              <div className="admin-heading"><div><span>{country.shortName} ADMINISTRATOR ACCESS · {country.currency}</span><h1>{adminTab === "advertiser" ? "Advertising companies" : adminTab === "billboard_owner" ? "Inventory companies" : adminTab === "staff" ? "Admin people & roles" : adminTab === "vendor_billing" ? "Vendor billing" : "Advertiser billing"}</h1><p>{adminTab === "staff" ? "Create and edit roles, then assign each person only the work they are responsible for." : adminTab === "vendor_billing" ? `Track amounts payable to ${country.shortName} billboard vendors, payout dates and payment status.` : adminTab === "advertiser_billing" ? `Track ${country.shortName} advertiser invoices, collections, due dates and outstanding balances.` : `Review ${country.shortName} company details, add a new company account or remove an account when required.`}</p></div>{(adminTab === "advertiser" || adminTab === "billboard_owner" || adminTab === "staff") && <div className="admin-actions">{adminTab !== "staff" && <button type="button" className="admin-refresh" onClick={() => void loadAdminCompanies()} disabled={adminLoading}>{adminLoading ? "Loading…" : "Refresh"}</button>}{adminTab === "staff" && <button type="button" className="admin-refresh" onClick={() => { setEditingAdminRole(null); setAdminRoleEditorOpen(true); }}>+ Add role</button>}<button type="button" className="admin-add" onClick={() => { if (adminTab === "staff") { setEditingAdminStaff(null); setAdminStaffAddOpen(true); } else setAdminAddOpen(true); setAdminError(""); }}>{adminTab === "staff" ? "+ Add admin person" : "+ Add company"}</button></div>}</div>
               {adminError && <div className="admin-alert error" role="alert">{adminError}</div>}
               {adminMessage && <div className="admin-alert success" role="status">{adminMessage}</div>}
               {(adminTab === "advertiser" || adminTab === "billboard_owner") && adminCompanies.some((company) => company.accountType === adminTab && company.accountStatus !== "active") && <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Accounts waiting for activation</th><th>Email verification</th><th>Status</th><th aria-label="Activation action" /></tr></thead><tbody>{adminCompanies.filter((company) => company.accountType === adminTab && company.accountStatus !== "active").map((company) => <tr key={`activation-${company.id}`}><td><strong>{company.companyName}</strong><small>{company.contactPerson} · {company.accountType === "advertiser" ? "Advertiser" : "Inventory company"}</small></td><td>{company.emailVerified ? "Email verified" : "Email verification pending"}</td><td><span className="admin-status pending">Pending admin approval</span></td><td><button className="admin-add" type="button" onClick={() => void updateAdminCompanyStatus(company, "active")}>Activate account</button></td></tr>)}</tbody></table></div>}
-              {adminTab === "staff" ? <><div className="admin-role-grid">{(Object.entries(adminRoleDetails) as [AdminRole, { label: string; work: string }][]).map(([role, details]) => <article key={role}><span>{adminStaff.filter((person) => person.role === role).length}</span><strong>{details.label}</strong><p>{details.work}</p></article>)}</div><div className="admin-table-wrap"><table className="admin-table admin-staff-table"><thead><tr><th>Admin person</th><th>Assigned role</th><th>Assigned work</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{adminStaff.map((person) => <tr key={person.id}><td><strong>{person.fullName}</strong><small>{person.email} · {person.phone}</small></td><td><strong>{adminRoleDetails[person.role].label}</strong></td><td>{adminRoleDetails[person.role].work}</td><td><span className={`admin-status ${person.status === "active" ? "active" : "pending"}`}>{person.status}</span></td><td><button className="admin-delete" type="button" onClick={() => setAdminStaff((current) => current.filter((item) => item.id !== person.id))}>Remove</button></td></tr>)}</tbody></table></div></> : (adminTab === "vendor_billing" || adminTab === "advertiser_billing") ? <><div className="admin-billing-summary"><article><span>Total value</span><strong>AED {adminBillingTotal.toLocaleString()}</strong><small>{adminBillingRows.length} billing records</small></article><article><span>Outstanding</span><strong>AED {adminBillingOutstanding.toLocaleString()}</strong><small>Due, overdue or processing</small></article><article><span>Paid records</span><strong>{adminBillingRows.filter((row) => row.status === "paid").length}</strong><small>Completed payments</small></article></div><div className="admin-table-wrap"><table className="admin-table admin-billing-table"><thead><tr><th>{adminTab === "vendor_billing" ? "Vendor" : "Advertiser"}</th><th>Invoice / payout</th><th>Campaign / billboard</th><th>Due date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{adminBillingRows.map((row) => <tr key={row.id}><td><strong>{row.company}</strong><small>{row.description}</small></td><td><strong>{row.id}</strong></td><td>{row.reference}</td><td>{row.dueDate}</td><td><strong>AED {row.amount.toLocaleString()}</strong></td><td><span className={`admin-status ${row.status}`}>{row.status}</span></td></tr>)}</tbody></table></div></> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Sector</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{adminCompanies.filter((item) => item.accountType === adminTab).map((company) => <tr key={company.id}><td><strong>{company.companyName}</strong><small>{company.accountType === "advertiser" ? "Advertiser" : "Billboard inventory owner"}</small></td><td>{company.contactPerson}<small>{company.contactNumber}</small></td><td>{company.companyEmail}<small>{company.emailVerified ? "✓ Email verified" : "Email verification pending"}</small></td><td>{company.businessSector}</td><td><span className={`admin-status ${company.accountStatus === "active" ? "active" : "pending"}`}>{company.accountStatus}</span></td><td><div className="admin-row-actions">{company.accountType === "billboard_owner" && <button className="admin-view" type="button" onClick={() => { setInventoryCompanyProfile(company); setInventoryCompanyEdit(false); }}>View details</button>}<button className="admin-delete" type="button" onClick={() => void deleteAdminCompany(company)}>Delete</button></div></td></tr>)}</tbody></table>{adminCompanies.filter((item) => item.accountType === adminTab).length === 0 && <div className="admin-empty">No {adminTab === "advertiser" ? "advertising" : "inventory"} companies found.</div>}</div>}
+              {adminTab === "staff" ? <><div className="admin-role-grid">{(Object.entries(adminRoleDetails) as [AdminRole, { label: string; work: string }][]).map(([role, details]) => <article key={role}><span>{adminStaff.filter((person) => person.role === role).length}</span><strong>{details.label}</strong><p>{details.work}</p></article>)}</div><div className="admin-table-wrap"><table className="admin-table admin-staff-table"><thead><tr><th>Admin person</th><th>Assigned role</th><th>Assigned work</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{adminStaff.map((person) => <tr key={person.id}><td><strong>{person.fullName}</strong><small>{person.email} · {person.phone}</small></td><td><strong>{adminRoleDetails[person.role].label}</strong></td><td>{adminRoleDetails[person.role].work}</td><td><span className={`admin-status ${person.status === "active" ? "active" : "pending"}`}>{person.status}</span></td><td><button className="admin-delete" type="button" onClick={() => setAdminStaff((current) => current.filter((item) => item.id !== person.id))}>Remove</button></td></tr>)}</tbody></table></div></> : (adminTab === "vendor_billing" || adminTab === "advertiser_billing") ? <><div className="admin-billing-summary"><article><span>Total value</span><strong>{currency} {adminBillingTotal.toLocaleString()}</strong><small>{adminBillingRows.length} billing records</small></article><article><span>Outstanding</span><strong>{currency} {adminBillingOutstanding.toLocaleString()}</strong><small>Due, overdue or processing</small></article><article><span>Paid records</span><strong>{adminBillingRows.filter((row) => row.status === "paid").length}</strong><small>Completed payments</small></article></div><div className="admin-table-wrap"><table className="admin-table admin-billing-table"><thead><tr><th>{adminTab === "vendor_billing" ? "Vendor" : "Advertiser"}</th><th>Invoice / payout</th><th>Campaign / billboard</th><th>Due date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{adminBillingRows.map((row) => <tr key={row.id}><td><strong>{row.company}</strong><small>{row.description}</small></td><td><strong>{row.id}</strong></td><td>{row.reference}</td><td>{row.dueDate}</td><td><strong>{currency} {row.amount.toLocaleString()}</strong></td><td><span className={`admin-status ${row.status}`}>{row.status}</span></td></tr>)}</tbody></table></div></> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Company</th><th>Contact</th><th>Email</th><th>Sector</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{adminCompanies.filter((item) => item.accountType === adminTab).map((company) => <tr key={company.id}><td><strong>{company.companyName}</strong><small>{company.accountType === "advertiser" ? "Advertiser" : "Billboard inventory owner"}</small></td><td>{company.contactPerson}<small>{company.contactNumber}</small></td><td>{company.companyEmail}<small>{company.emailVerified ? "✓ Email verified" : "Email verification pending"}</small></td><td>{company.businessSector}</td><td><span className={`admin-status ${company.accountStatus === "active" ? "active" : "pending"}`}>{company.accountStatus}</span></td><td><div className="admin-row-actions">{company.accountType === "billboard_owner" && <button className="admin-view" type="button" onClick={() => { setInventoryCompanyProfile(company); setInventoryCompanyEdit(false); }}>View details</button>}<button className="admin-delete" type="button" onClick={() => void deleteAdminCompany(company)}>Delete</button></div></td></tr>)}</tbody></table>{adminCompanies.filter((item) => item.accountType === adminTab).length === 0 && <div className="admin-empty">No {adminTab === "advertiser" ? "advertising" : "inventory"} companies found.</div>}</div>}
             </section>
           </div>
           {adminAddOpen && <div className="admin-add-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAdminAddOpen(false); }}><section className="admin-add-modal" role="dialog" aria-modal="true" aria-labelledby="admin-add-title"><button className="auth-close" type="button" aria-label="Close" onClick={() => setAdminAddOpen(false)}>×</button><span>NEW COMPANY ACCOUNT</span><h2 id="admin-add-title">Add company details</h2><p>Create an advertiser or inventory-company account. The contact receives the login email details securely.</p><form onSubmit={submitAdminCompany}><div className="admin-add-grid"><label>Company name<input name="companyName" required /></label><label>Account type<select name="accountType" defaultValue={adminTab}><option value="advertiser">Advertising company</option><option value="billboard_owner">Inventory company</option></select></label><label>Contact person<input name="contactPerson" required /></label><label>Business sector<input name="businessSector" required /></label><label>Contact number<input name="contactNumber" type="tel" required /></label><label>WhatsApp number<input name="whatsappNumber" type="tel" /></label><label className="wide">Company email<input name="companyEmail" type="email" required /></label><label className="wide">Temporary password<input name="password" type="password" minLength={8} required /></label></div><small className="admin-password-note">Use at least 8 characters, including upper/lowercase letters, a number and a symbol.</small><button className="admin-add-submit">Create company account →</button></form></section></div>}
@@ -2606,7 +2743,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
           {adminPasswordPerson && <div className="admin-add-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAdminPasswordPerson(null); }}><section className="admin-add-modal admin-password-modal" role="dialog" aria-modal="true" aria-labelledby="admin-password-title"><button className="auth-close" type="button" aria-label="Close password form" onClick={() => setAdminPasswordPerson(null)}>×</button><span>ADMIN ACCOUNT SECURITY</span><h2 id="admin-password-title">Change password</h2><p>Set a new portal password for <strong>{adminPasswordPerson.fullName}</strong> · {adminPasswordPerson.email}</p><form onSubmit={changeAdminPassword}><div className="admin-add-grid"><label className="wide">New password<input name="newPassword" type="password" minLength={8} autoComplete="new-password" placeholder="Minimum 8 characters" required autoFocus /></label><label className="wide">Confirm new password<input name="confirmPassword" type="password" minLength={8} autoComplete="new-password" placeholder="Enter the password again" required /></label></div>{adminPasswordError && <div className="admin-alert error" role="alert">{adminPasswordError}</div>}<small className="admin-password-note">Use uppercase and lowercase letters, a number and a symbol. Production changes will be stored securely.</small><button className="admin-add-submit">Update password →</button></form></section></div>}
           {inventoryCompanyProfile && <div className="admin-add-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setInventoryCompanyProfile(null); }}><section className="inventory-company-profile" role="dialog" aria-modal="true" aria-labelledby="inventory-company-title"><button className="auth-close" type="button" aria-label="Close" onClick={() => setInventoryCompanyProfile(null)}>×</button><div className="inventory-company-cover"><img src="/asnads-hero.png" alt="" /><div className="inventory-company-logo">{inventoryCompanyLogo ? "✓" : inventoryCompanyProfile.companyName.slice(0, 2).toUpperCase()}</div></div><header><div><span>VERIFIED INVENTORY COMPANY</span><h2 id="inventory-company-title">{inventoryCompanyProfile.companyName}</h2><p>Vendor code: SLO · Account #{inventoryCompanyProfile.id}</p></div><button className="admin-add" type="button" onClick={() => setInventoryCompanyEdit((current) => !current)}>{inventoryCompanyEdit ? "Cancel editing" : "Edit company profile"}</button></header><form onSubmit={saveInventoryCompanyProfile}><div className="inventory-profile-section"><h3>Company images</h3><div className="inventory-upload-grid"><label>Company logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setInventoryCompanyLogo(event.target.files?.[0]?.name || "")} /><span>{inventoryCompanyLogo || "Upload square logo"}</span></label><label>Company cover image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setInventoryCompanyCover(event.target.files?.[0]?.name || "")} /><span>{inventoryCompanyCover || "Upload landscape cover"}</span></label></div></div><div className="inventory-profile-section"><h3>Company and contact details</h3><div className="admin-add-grid"><label>Company name<input defaultValue={inventoryCompanyProfile.companyName} readOnly={!inventoryCompanyEdit} /></label><label>Business sector<input defaultValue={inventoryCompanyProfile.businessSector} readOnly={!inventoryCompanyEdit} /></label><label>Contact person<input defaultValue={inventoryCompanyProfile.contactPerson} readOnly={!inventoryCompanyEdit} /></label><label>Position<input defaultValue="Inventory Operations Manager" readOnly={!inventoryCompanyEdit} /></label><label>Phone<input defaultValue={inventoryCompanyProfile.contactNumber} readOnly={!inventoryCompanyEdit} /></label><label>WhatsApp<input defaultValue={inventoryCompanyProfile.whatsappNumber} readOnly={!inventoryCompanyEdit} /></label><label className="wide">Email<input defaultValue={inventoryCompanyProfile.companyEmail} readOnly={!inventoryCompanyEdit} /></label><label className="wide">Office address<input defaultValue="Business Bay, Dubai, United Arab Emirates" readOnly={!inventoryCompanyEdit} /></label><label className="wide">Google Maps link<input defaultValue="https://maps.google.com/?q=Business+Bay+Dubai" readOnly={!inventoryCompanyEdit} /></label></div></div><div className="inventory-profile-section"><h3>Coverage and inventory</h3><div className="inventory-company-stats"><article><strong>24</strong><span>Total billboards</span></article><article><strong>5</strong><span>Digital</span></article><article><strong>14</strong><span>Static</span></article><article><strong>5</strong><span>Digital kiosks</span></article></div><div className="admin-add-grid"><label className="wide">Emirates served<input defaultValue="Dubai, Abu Dhabi, Sharjah" readOnly={!inventoryCompanyEdit} /></label><label className="wide">Billboard categories<input defaultValue="Road, Malls, Bridges, Buildings, Digital Kiosks" readOnly={!inventoryCompanyEdit} /></label></div></div><div className="inventory-profile-section"><h3>Documents and verification</h3><div className="inventory-document-grid"><label>Trade licence<input type="file" accept=".pdf,image/*" /><span>Trade_Licence_2026.pdf</span><b>Verified</b></label><label>VAT certificate<input type="file" accept=".pdf,image/*" /><span>VAT_Certificate.pdf</span><b>Verified</b></label><label>Bank details<input type="file" accept=".pdf,image/*" /><span>Bank_Confirmation.pdf</span><b>Restricted</b></label></div></div><div className="inventory-profile-actions"><label>Account status<select defaultValue={inventoryCompanyProfile.accountStatus} disabled={!inventoryCompanyEdit}><option value="active">Approved and active</option><option value="pending">Pending verification</option><option value="suspended">Suspended</option></select></label>{inventoryCompanyEdit && <button className="admin-add-submit">Save company details</button>}</div><small className="admin-password-note">Private test mode: selected files are not uploaded permanently. Secure cloud image/document storage will be connected before production use.</small></form></section></div>}
           {inventoryCompanyProfile && <aside className="inventory-financial-drawer" aria-label="Vendor VAT and bank details"><div className="inventory-financial-heading"><div><span>ACCOUNTANT ACCESS</span><h3>VAT &amp; bank details</h3><p>{inventoryCompanyProfile.companyName}</p></div><button type="button" onClick={() => setInventoryFinancialProfile(inventoryFinancialProfile ? null : inventoryCompanyProfile)}>{inventoryFinancialProfile ? "Hide" : "Open"}</button></div>{inventoryFinancialProfile && <form onSubmit={(event) => { event.preventDefault(); setAdminMessage("VAT and bank details were updated in private test mode."); setInventoryFinancialProfile(null); }}><label>VAT / TRN number<input name="vatNumber" inputMode="numeric" defaultValue="100123456700003" placeholder="15-digit UAE TRN" minLength={15} maxLength={15} required /></label><label className="inventory-financial-upload">Upload VAT certificate<input name="vatCertificate" type="file" accept=".pdf,image/*" required /><span>PDF, JPG or PNG</span></label><label>Bank name<input name="bankName" defaultValue="Emirates NBD" required /></label><label>Account holder name<input name="accountHolder" defaultValue={inventoryCompanyProfile.companyName} required /></label><label>IBAN<input name="iban" defaultValue="AE070331234567890123456" required /></label><label>SWIFT / BIC<input name="swift" defaultValue="EBILAEAD" required /></label><label>Bank account number<input name="accountNumber" defaultValue="001234567890" required /></label><label className="inventory-financial-upload">Upload bank letter<input name="bankLetter" type="file" accept=".pdf,image/*" required /><span>Official bank confirmation letter</span></label><button className="admin-add-submit">Save VAT and bank details</button><small>Private test mode: files are selected locally and are not uploaded permanently.</small></form>}</aside>}
-          {advertiserCompanyPortal && <div className="advertiser-portal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAdvertiserCompanyPortal(null); }}><section className="advertiser-company-portal" role="dialog" aria-modal="true" aria-labelledby="advertiser-portal-title"><header><div className="advertiser-portal-brand">{advertiserCompanyPortal.companyName.slice(0, 2).toUpperCase()}</div><div><span>ADVERTISER PORTAL · ADMIN VIEW</span><h2 id="advertiser-portal-title">{advertiserCompanyPortal.companyName}</h2><p>Account #{advertiserCompanyPortal.id} · {advertiserCompanyPortal.accountStatus}</p></div><button className="auth-close" type="button" aria-label="Close advertiser portal" onClick={() => setAdvertiserCompanyPortal(null)}>×</button></header><nav aria-label="Advertiser portal sections">{(["overview", "campaigns", "adgroups", "ads", "billboards", "billing"] as const).map((tab) => <button key={tab} className={advertiserPortalTab === tab ? "active" : ""} type="button" onClick={() => setAdvertiserPortalTab(tab)}>{tab === "adgroups" ? "Ad groups" : tab[0].toUpperCase() + tab.slice(1)}</button>)}</nav><div className="advertiser-portal-body">{advertiserPortalTab === "overview" && <><div className="advertiser-portal-stats"><article><span>Active campaigns</span><strong>2</strong><small>Digital and static</small></article><article><span>Total budget</span><strong>AED 50,000</strong><small>Current campaigns</small></article><article><span>Selected billboards</span><strong>3</strong><small>Across Dubai</small></article><article><span>Amount due</span><strong>AED 18,500</strong><small>Due 08/08/2026</small></article></div><div className="advertiser-overview-grid"><section><h3>Company details</h3><dl><div><dt>Business sector</dt><dd>{advertiserCompanyPortal.businessSector}</dd></div><div><dt>Company email</dt><dd>{advertiserCompanyPortal.companyEmail}</dd></div><div><dt>Account status</dt><dd>{advertiserCompanyPortal.accountStatus}</dd></div><div><dt>Email verification</dt><dd>{advertiserCompanyPortal.emailVerified ? "Verified" : "Pending"}</dd></div></dl></section><section><h3>Contact person</h3><dl><div><dt>Name</dt><dd>{advertiserCompanyPortal.contactPerson}</dd></div><div><dt>Position</dt><dd>Marketing Manager</dd></div><div><dt>Phone</dt><dd>{advertiserCompanyPortal.contactNumber}</dd></div><div><dt>WhatsApp</dt><dd>{advertiserCompanyPortal.whatsappNumber}</dd></div></dl></section></div></>}{advertiserPortalTab === "campaigns" && <div className="advertiser-portal-list"><article><div><span>CAMPAIGN</span><strong>Phi UAE Brand Launch</strong><small>Digital billboard · Dubai · 15/08/2026</small></div><b className="admin-status active">Eligible</b><strong>AED 30,000</strong></article><article><div><span>CAMPAIGN</span><strong>Phi Static Road Campaign</strong><small>Static billboard · Sheikh Zayed Road · 01/09/2026</small></div><b className="admin-status pending">Draft</b><strong>AED 20,000</strong></article></div>}{advertiserPortalTab === "adgroups" && <div className="advertiser-portal-list"><article><div><span>AD GROUP</span><strong>Digital Ad Group</strong><small>2 selected digital billboards</small></div><b className="admin-status active">Active</b><strong>AED 30,000</strong></article><article><div><span>AD GROUP</span><strong>Static Ad Group</strong><small>1 selected static billboard</small></div><b className="admin-status pending">Draft</b><strong>AED 20,000</strong></article></div>}{advertiserPortalTab === "ads" && <div className="advertiser-portal-list"><article><div><span>DIGITAL AD</span><strong>Phi Launch Motion Creative</strong><small>1920 × 1080 · MP4 · Approved</small></div><b className="admin-status active">Approved</b><strong>Digital</strong></article><article><div><span>STATIC AD</span><strong>Phi Road Artwork</strong><small>12 × 4 m · PDF · Creative review</small></div><b className="admin-status processing">Review</b><strong>Static</strong></article></div>}{advertiserPortalTab === "billboards" && <div className="advertiser-billboard-grid"><article><img src="/asnads-hero.png" alt="Sheikh Zayed Road billboard" /><strong>SH-47-SKY-01</strong><span>Sheikh Zayed Road, Exit 47</span><small>Digital · AED 172/hour</small></article><article><img src="/asnads-hero.png" alt="Dubai Mall kiosk" /><strong>TH-AB-ROOFL-01</strong><span>The Dubai Mall</span><small>Digital Kiosk · AED 199/hour</small></article><article><img src="/asnads-hero.png" alt="Al Khail Road billboard" /><strong>AK-12-RVM-02</strong><span>Al Khail Road</span><small>Static · AED 32,000/month</small></article></div>}{advertiserPortalTab === "billing" && <div className="advertiser-portal-list"><article><div><span>INVOICE INV-2026-104</span><strong>Digital and static campaign</strong><small>Due 08/08/2026</small></div><b className="admin-status due">Due</b><strong>AED 18,500</strong></article><article><div><span>PAYMENT PAY-2026-088</span><strong>Campaign deposit</strong><small>Paid 20/07/2026</small></div><b className="admin-status paid">Paid</b><strong>AED 31,500</strong></article></div>}</div></section></div>}
+          {advertiserCompanyPortal && <div className="advertiser-portal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAdvertiserCompanyPortal(null); }}><section className="advertiser-company-portal" role="dialog" aria-modal="true" aria-labelledby="advertiser-portal-title"><header><div className="advertiser-portal-brand">{advertiserCompanyPortal.companyName.slice(0, 2).toUpperCase()}</div><div><span>ADVERTISER PORTAL · ADMIN VIEW</span><h2 id="advertiser-portal-title">{advertiserCompanyPortal.companyName}</h2><p>Account #{advertiserCompanyPortal.id} · {advertiserCompanyPortal.accountStatus}</p></div><button className="auth-close" type="button" aria-label="Close advertiser portal" onClick={() => setAdvertiserCompanyPortal(null)}>×</button></header><nav aria-label="Advertiser portal sections">{(["overview", "campaigns", "adgroups", "ads", "billboards", "billing"] as const).map((tab) => <button key={tab} className={advertiserPortalTab === tab ? "active" : ""} type="button" onClick={() => setAdvertiserPortalTab(tab)}>{tab === "adgroups" ? "Ad groups" : tab[0].toUpperCase() + tab.slice(1)}</button>)}</nav><div className="advertiser-portal-body">{advertiserPortalTab === "overview" && <><div className="advertiser-portal-stats"><article><span>Active campaigns</span><strong>2</strong><small>Digital and static</small></article><article><span>Total budget</span><strong>{currency} 50,000</strong><small>Current campaigns</small></article><article><span>Selected billboards</span><strong>3</strong><small>Across Dubai</small></article><article><span>Amount due</span><strong>{currency} 18,500</strong><small>Due 08/08/2026</small></article></div><div className="advertiser-overview-grid"><section><h3>Company details</h3><dl><div><dt>Business sector</dt><dd>{advertiserCompanyPortal.businessSector}</dd></div><div><dt>Company email</dt><dd>{advertiserCompanyPortal.companyEmail}</dd></div><div><dt>Account status</dt><dd>{advertiserCompanyPortal.accountStatus}</dd></div><div><dt>Email verification</dt><dd>{advertiserCompanyPortal.emailVerified ? "Verified" : "Pending"}</dd></div></dl></section><section><h3>Contact person</h3><dl><div><dt>Name</dt><dd>{advertiserCompanyPortal.contactPerson}</dd></div><div><dt>Position</dt><dd>Marketing Manager</dd></div><div><dt>Phone</dt><dd>{advertiserCompanyPortal.contactNumber}</dd></div><div><dt>WhatsApp</dt><dd>{advertiserCompanyPortal.whatsappNumber}</dd></div></dl></section></div></>}{advertiserPortalTab === "campaigns" && <div className="advertiser-portal-list"><article><div><span>CAMPAIGN</span><strong>Phi UAE Brand Launch</strong><small>Digital billboard · Dubai · 15/08/2026</small></div><b className="admin-status active">Eligible</b><strong>{currency} 30,000</strong></article><article><div><span>CAMPAIGN</span><strong>Phi Static Road Campaign</strong><small>Static billboard · Sheikh Zayed Road · 01/09/2026</small></div><b className="admin-status pending">Draft</b><strong>{currency} 20,000</strong></article></div>}{advertiserPortalTab === "adgroups" && <div className="advertiser-portal-list"><article><div><span>AD GROUP</span><strong>Digital Ad Group</strong><small>2 selected digital billboards</small></div><b className="admin-status active">Active</b><strong>{currency} 30,000</strong></article><article><div><span>AD GROUP</span><strong>Static Ad Group</strong><small>1 selected static billboard</small></div><b className="admin-status pending">Draft</b><strong>{currency} 20,000</strong></article></div>}{advertiserPortalTab === "ads" && <div className="advertiser-portal-list"><article><div><span>DIGITAL AD</span><strong>Phi Launch Motion Creative</strong><small>1920 × 1080 · MP4 · Approved</small></div><b className="admin-status active">Approved</b><strong>Digital</strong></article><article><div><span>STATIC AD</span><strong>Phi Road Artwork</strong><small>12 × 4 m · PDF · Creative review</small></div><b className="admin-status processing">Review</b><strong>Static</strong></article></div>}{advertiserPortalTab === "billboards" && <div className="advertiser-billboard-grid"><article><img src="/asnads-hero.png" alt="Sheikh Zayed Road billboard" /><strong>SH-47-SKY-01</strong><span>Sheikh Zayed Road, Exit 47</span><small>Digital · {currency} 172/hour</small></article><article><img src="/asnads-hero.png" alt="Dubai Mall kiosk" /><strong>TH-AB-ROOFL-01</strong><span>The Dubai Mall</span><small>Digital Kiosk · {currency} 199/hour</small></article><article><img src="/asnads-hero.png" alt="Al Khail Road billboard" /><strong>AK-12-RVM-02</strong><span>Al Khail Road</span><small>Static · {currency} 32,000/month</small></article></div>}{advertiserPortalTab === "billing" && <div className="advertiser-portal-list"><article><div><span>INVOICE INV-2026-104</span><strong>Digital and static campaign</strong><small>Due 08/08/2026</small></div><b className="admin-status due">Due</b><strong>{currency} 18,500</strong></article><article><div><span>PAYMENT PAY-2026-088</span><strong>Campaign deposit</strong><small>Paid 20/07/2026</small></div><b className="admin-status paid">Paid</b><strong>{currency} 31,500</strong></article></div>}</div></section></div>}
           {advertiserCompanyPortal && advertiserPortalTab === "billboards" && <section className="phi-location-library" aria-label="Phi digital billboard locations"><header><div><span>PHI DIGITAL BILLBOARD NETWORK · PDF IMPORT</span><h2>Dubai digital locations</h2><p>{vendorInventory.length} locations · Prices excluded</p></div><button type="button" onClick={() => setAdvertiserPortalTab("overview")}>← Back to Phi portal</button></header><div className="phi-location-grid">{vendorInventory.map((location, index) => <article key={`${location.page}-${location.name}`}><img src={`/phi-locations/page-${String(Math.min(location.page, 22)).padStart(2, "0")}.jpg`} alt={`${location.name} digital billboard location`} /><div><div className="phi-location-title"><span>PHI-DIG-{String(index + 1).padStart(2, "0")}</span>{location.upcoming && <b>Upcoming 2026</b>}</div><h3>{location.name}</h3><p>{location.road}</p><dl><div><dt>Type</dt><dd>{location.type}</dd></div><div><dt>Screen size</dt><dd>{location.size}</dd></div><div><dt>Landmark</dt><dd>{location.landmark}</dd></div><div><dt>Traffic data</dt><dd>{location.traffic}</dd></div></dl><div className="phi-location-links"><a href={location.map} target="_blank" rel="noreferrer">Open Google Maps ↗</a>{"aerial" in location && location.aerial && <a href={location.aerial} target="_blank" rel="noreferrer">Aerial footage ↗</a>}</div></div></article>)}</div></section>}
           {advertiserCompanyPortal && advertiserPortalTab === "billboards" && <aside className="phi-publish-drawer" aria-label="Publish Phi billboards for advertisers"><header><span>ADMIN APPROVAL</span><h3>Advertiser visibility</h3><p>{publishedPhiPages.length} of {vendorInventory.length} Phi locations published</p><div><button type="button" onClick={() => setPublishedPhiPages(vendorInventory.map((location) => location.page))}>Publish all</button><button type="button" onClick={() => setPublishedPhiPages([])}>Unpublish all</button></div></header><div>{vendorInventory.map((location) => { const isPublished = publishedPhiPages.includes(location.page); return <article key={`publish-${location.page}`}><div><strong>{location.name}</strong><small>{location.road} · {location.type}</small></div><span className={`admin-status ${isPublished ? "active" : "pending"}`}>{isPublished ? "Published" : "Admin review"}</span><button type="button" className={isPublished ? "unpublish" : "publish"} onClick={() => setPublishedPhiPages((current) => isPublished ? current.filter((page) => page !== location.page) : [...current, location.page])}>{isPublished ? "Unpublish" : "Publish"}</button></article>})}</div><footer><strong>Automatic connection</strong><span>Published locations appear in the advertiser campaign builder under Dubai → Digital → Road.</span></footer></aside>}
           {inventoryApprovalsOpen && <div className="inventory-approval-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setInventoryApprovalsOpen(false); }}><section className="inventory-approval-workspace" role="dialog" aria-modal="true" aria-labelledby="inventory-approval-title"><header><div><span>ADMIN · INVENTORY CONTROL</span><h2 id="inventory-approval-title">Phi billboard approvals</h2><p>Review vendor-submitted inventory before making it available to advertisers.</p></div><button type="button" onClick={() => setInventoryApprovalsOpen(false)}>×</button></header><div className="inventory-approval-summary"><article><strong>{phiDigitalLocations.filter((location) => location.upcoming).length}</strong><span>Draft</span></article><article><strong>{phiDigitalLocations.filter((location) => !location.upcoming && !approvedPhiPages.includes(location.page) && !publishedPhiPages.includes(location.page)).length}</strong><span>Pending review</span></article><article><strong>{approvedPhiPages.filter((page) => !publishedPhiPages.includes(page)).length}</strong><span>Approved</span></article><article><strong>{publishedPhiPages.length}</strong><span>Published</span></article></div><div className="inventory-approval-list">{phiDigitalLocations.map((location, index) => { const isPublished = publishedPhiPages.includes(location.page); const isApproved = approvedPhiPages.includes(location.page); const status = isPublished ? "Published" : isApproved ? "Approved" : location.upcoming ? "Draft" : "Pending review"; return <article key={`approval-${location.page}`}><img src={`/phi-locations/page-${String(location.page).padStart(2, "0")}.jpg`} alt={`${location.name} billboard`} /><div className="inventory-approval-details"><span>PHI-DIG-{String(index + 1).padStart(2, "0")}</span><h3>{location.name}</h3><p>{location.road} · {location.landmark}</p><dl><div><dt>Dimensions</dt><dd>{location.size}</dd></div><div><dt>Traffic</dt><dd>{location.traffic}</dd></div><div><dt>Pricing and booking plans</dt><dd>Not added</dd></div></dl><a href={location.map} target="_blank" rel="noreferrer">Check Google Maps ↗</a></div><div className="inventory-approval-actions"><span className={`approval-status ${status.toLowerCase().replace(" ", "-")}`}>{status}</span>{!isApproved && <button type="button" className="approve" onClick={() => setApprovedPhiPages((current) => [...current, location.page])}>Approve</button>}{isApproved && !isPublished && <button type="button" className="publish" onClick={() => setPublishedPhiPages((current) => [...current, location.page])}>Publish for advertisers</button>}{isPublished && <button type="button" className="unpublish" onClick={() => setPublishedPhiPages((current) => current.filter((page) => page !== location.page))}>Unpublish</button>}</div></article>})}</div></section></div>}
@@ -2646,11 +2783,11 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                 <div><small>ACCOUNT STATUS</small><strong>{authUser.accountStatus === "active" ? "Active and verified" : "Pending verification"}</strong><span>Vendor ID #{authUser.companyId || authUser.id}</span></div>
               </aside>
               <main>
-                {vendorDashboardTab === "overview" && <><div className="vendor-dashboard-heading"><div><span>GOOD DAY, {authUser.fullName.split(" ")[0].toUpperCase()}</span><h1>Vendor dashboard</h1><p>Manage inventory, bookings, availability and payments from one workspace.</p></div><button type="button" onClick={openVendorForm}>List new billboard</button></div><div className="vendor-dashboard-stats"><article><span>Total inventory</span><strong>{vendorDashboardInventory.length}</strong><small>Billboard locations</small></article><article><span>Published</span><strong>{vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length}</strong><small>Visible to advertisers</small></article><article><span>Booking requests</span><strong>0</strong><small>New vendor workspace</small></article><article><span>Vendor VAT generated</span><strong>AED {formatMoneyWithFils(vendorDashboardVatGenerated)}</strong><small>VAT 5% from this vendor only</small></article></div><div className="vendor-dashboard-overview-grid"><section><div className="vendor-panel-title"><div><span>GET STARTED</span><strong>Add your billboard inventory</strong></div><button type="button" onClick={openVendorForm}>Add inventory</button></div><div className="vendor-request-list compact"><article><i>01</i><div><strong>List billboard details and pricing</strong><small>Your submission will appear under My billboard inventory.</small></div></article></div></section><section><div className="vendor-panel-title"><div><span>INVENTORY STATUS</span><strong>Approval progress</strong></div><button type="button" onClick={() => setVendorDashboardTab("inventory")}>Manage</button></div><div className="vendor-status-chart"><div><span style={{ width: `${vendorDashboardInventory.length ? Math.max(12, Math.min(100, (vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length / vendorDashboardInventory.length) * 100)) : 0}%` }} /></div><p><strong>{vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length}</strong> published · <strong>{vendorDashboardInventory.filter((location) => approvedPhiPages.includes(location.page) && !publishedPhiPages.includes(location.page)).length}</strong> approved · <strong>{vendorDashboardInventory.filter((location) => !approvedPhiPages.includes(location.page) && !publishedPhiPages.includes(location.page)).length}</strong> under review</p></div></section></div></>}
+                {vendorDashboardTab === "overview" && <><div className="vendor-dashboard-heading"><div><span>GOOD DAY, {authUser.fullName.split(" ")[0].toUpperCase()}</span><h1>Vendor dashboard</h1><p>Manage inventory, bookings, availability and payments from one workspace.</p></div><button type="button" onClick={openVendorForm}>List new billboard</button></div><div className="vendor-dashboard-stats"><article><span>Total inventory</span><strong>{vendorDashboardInventory.length}</strong><small>Billboard locations</small></article><article><span>Published</span><strong>{vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length}</strong><small>Visible to advertisers</small></article><article><span>Booking requests</span><strong>0</strong><small>New vendor workspace</small></article><article><span>Vendor VAT generated</span><strong>{currency} {formatMoneyWithFils(vendorDashboardVatGenerated)}</strong><small>{country.vatLabel} from this vendor only</small></article></div><div className="vendor-dashboard-overview-grid"><section><div className="vendor-panel-title"><div><span>GET STARTED</span><strong>Add your billboard inventory</strong></div><button type="button" onClick={openVendorForm}>Add inventory</button></div><div className="vendor-request-list compact"><article><i>01</i><div><strong>List billboard details and pricing</strong><small>Your submission will appear under My billboard inventory.</small></div></article></div></section><section><div className="vendor-panel-title"><div><span>INVENTORY STATUS</span><strong>Approval progress</strong></div><button type="button" onClick={() => setVendorDashboardTab("inventory")}>Manage</button></div><div className="vendor-status-chart"><div><span style={{ width: `${vendorDashboardInventory.length ? Math.max(12, Math.min(100, (vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length / vendorDashboardInventory.length) * 100)) : 0}%` }} /></div><p><strong>{vendorDashboardInventory.filter((location) => publishedPhiPages.includes(location.page)).length}</strong> published · <strong>{vendorDashboardInventory.filter((location) => approvedPhiPages.includes(location.page) && !publishedPhiPages.includes(location.page)).length}</strong> approved · <strong>{vendorDashboardInventory.filter((location) => !approvedPhiPages.includes(location.page) && !publishedPhiPages.includes(location.page)).length}</strong> under review</p></div></section></div></>}
                 {vendorDashboardTab === "inventory" && <><div className="vendor-dashboard-heading"><div><span>MY INVENTORY</span><h1>Billboard locations</h1><p>Track approval and advertiser visibility for every submitted location.</p></div><button type="button" onClick={openVendorForm}>+ Add inventory</button></div>{lastVendorSubmissionCount > 0 && <div className="vendor-submission-confirmation"><span>✓</span><div><strong>Vendor application submitted successfully</strong><p>{lastVendorSubmissionCount} new billboard{lastVendorSubmissionCount === 1 ? "" : "s"} added below with Pending Review status.</p></div></div>}<div className="vendor-dashboard-inventory">{vendorDashboardInventory.length === 0 && <div className="vendor-dashboard-empty"><strong>No billboards added yet</strong><p>Use “Add inventory” to submit your first billboard.</p><button type="button" onClick={openVendorForm}>Add your first billboard</button></div>}{vendorDashboardInventory.slice(-8).reverse().map((location, index) => { const published = publishedPhiPages.includes(location.page); const approved = approvedPhiPages.includes(location.page); return <article key={`${location.page}-${index}`}><img src={`/phi-locations/page-${String(Math.min(location.page, 22)).padStart(2, "0")}.jpg`} alt="" /><div><span>{published ? "PUBLISHED" : approved ? "APPROVED" : "PENDING REVIEW"}</span><strong>{location.name}</strong><small>{location.road} · {location.type}</small><p>{location.size} · {location.traffic}</p></div><b className={published ? "published" : approved ? "approved" : "pending"}>{published ? "Live" : approved ? "Ready" : "Review"}</b></article>})}</div></>}
                 {vendorDashboardTab === "bookings" && <><div className="vendor-dashboard-heading"><div><span>CAMPAIGN REQUESTS</span><h1>Booking requests</h1><p>Review advertiser dates, selected inventory and media value.</p></div></div><div className="vendor-dashboard-empty"><strong>No booking requests yet</strong><p>New requests will appear here only when an advertiser books one of this vendor’s published billboards.</p></div></>}
-                {vendorDashboardTab === "availability" && <><div className="vendor-dashboard-heading"><div><span>INVENTORY SCHEDULE</span><h1>Availability calendar</h1><p>Block unavailable dates or reopen dates for advertiser bookings.</p></div><button type="button" onClick={() => { openVendorForm(); setVendorStep(2); }}>Manage calendar</button></div><div className="vendor-dashboard-calendar-card"><span>CALENDAR CONTROL</span><strong>{calendarMonth.toLocaleString("en-AE", { month: "long", year: "numeric" })}</strong><p>{blockedDates.length} blocked dates · Available dates remain visible to advertisers.</p><button type="button" onClick={() => { openVendorForm(); setVendorStep(2); }}>Open full availability calendar →</button></div></>}
-                {vendorDashboardTab === "billing" && <><div className="vendor-dashboard-heading"><div><span>FINANCE</span><h1>Billing & payouts</h1><p>Track vendor invoices, VAT, payment status and expected payout dates.</p></div></div><div className="vendor-dashboard-stats billing"><article><span>Total earnings</span><strong>AED {formatMoneyWithFils(vendorDashboardBillingTotal)}</strong><small>Current financial year</small></article><article><span>Outstanding</span><strong>AED {formatMoneyWithFils(vendorDashboardBillingOutstanding)}</strong><small>Approved campaigns</small></article><article><span>Paid</span><strong>AED {formatMoneyWithFils(vendorDashboardBillingPaid)}</strong><small>Settled payouts</small></article></div>{vendorDashboardBillingRows.length === 0 ? <div className="vendor-dashboard-empty"><strong>No billing activity yet</strong><p>Invoices, VAT and payouts will appear here after this company receives a confirmed billboard booking.</p></div> : <div className="vendor-booking-table billing"><div className="vendor-booking-head"><span>Payout</span><span>Campaign</span><span>Media value</span><span>VAT 5%</span><span>Total</span><span>Status</span></div>{vendorDashboardBillingRows.map((row) => <article key={row.id}><strong>{row.id}</strong><span>{row.reference}</span><span>AED {formatMoneyWithFils(row.amount / 1.05)}</span><span>AED {formatMoneyWithFils(row.amount - row.amount / 1.05)}</span><b>AED {formatMoneyWithFils(row.amount)}</b><em className={row.status}>{row.status}</em></article>)}</div>}</>}
+                {vendorDashboardTab === "availability" && <><div className="vendor-dashboard-heading"><div><span>INVENTORY SCHEDULE</span><h1>Availability calendar</h1><p>Block unavailable dates or reopen dates for advertiser bookings.</p></div><button type="button" onClick={() => { openVendorForm(); setVendorStep(2); }}>Manage calendar</button></div><div className="vendor-dashboard-calendar-card"><span>CALENDAR CONTROL</span><strong>{calendarMonth.toLocaleString(country.locale, { month: "long", year: "numeric" })}</strong><p>{blockedDates.length} blocked dates · Available dates remain visible to advertisers.</p><button type="button" onClick={() => { openVendorForm(); setVendorStep(2); }}>Open full availability calendar →</button></div></>}
+                {vendorDashboardTab === "billing" && <><div className="vendor-dashboard-heading"><div><span>FINANCE</span><h1>Billing & payouts</h1><p>Track vendor invoices, VAT, payment status and expected payout dates.</p></div></div><div className="vendor-dashboard-stats billing"><article><span>Total earnings</span><strong>{currency} {formatMoneyWithFils(vendorDashboardBillingTotal)}</strong><small>Current financial year</small></article><article><span>Outstanding</span><strong>{currency} {formatMoneyWithFils(vendorDashboardBillingOutstanding)}</strong><small>Approved campaigns</small></article><article><span>Paid</span><strong>{currency} {formatMoneyWithFils(vendorDashboardBillingPaid)}</strong><small>Settled payouts</small></article></div>{vendorDashboardBillingRows.length === 0 ? <div className="vendor-dashboard-empty"><strong>No billing activity yet</strong><p>Invoices, VAT and payouts will appear here after this company receives a confirmed billboard booking.</p></div> : <div className="vendor-booking-table billing"><div className="vendor-booking-head"><span>Payout</span><span>Campaign</span><span>Media value</span><span>{country.vatLabel}</span><span>Total</span><span>Status</span></div>{vendorDashboardBillingRows.map((row) => <article key={row.id}><strong>{row.id}</strong><span>{row.reference}</span><span>{currency} {formatMoneyWithFils(row.amount / 1.05)}</span><span>{currency} {formatMoneyWithFils(row.amount - row.amount / 1.05)}</span><b>{currency} {formatMoneyWithFils(row.amount)}</b><em className={row.status}>{row.status}</em></article>)}</div>}</>}
                 {vendorDashboardTab === "profile" && <><div className="vendor-dashboard-heading"><div><span>COMPANY ACCOUNT</span><h1>Company profile</h1><p>Review and update the company and contact details used by ASNads.</p></div></div><div className="vendor-profile-card"><div><span>{(authUser.companyName || "VN").slice(0, 2).toUpperCase()}</span><section><small>INVENTORY COMPANY</small><strong>{authUser.companyName}</strong><p>{authUser.email}</p></section><b>{authUser.accountStatus}</b></div>{vendorProfileEditing ? <form className="vendor-profile-edit" onSubmit={saveVendorProfile}><label>Company name<input name="companyName" defaultValue={authUser.companyName} required /></label><label>Business sector<input name="businessSector" defaultValue={authUser.businessSector} required /></label><label>Contact person<input name="contactPerson" defaultValue={authUser.fullName} required /></label><label>Contact number<input name="contactNumber" type="tel" defaultValue={authUser.contactNumber} required /></label><label>WhatsApp number<input name="whatsappNumber" type="tel" defaultValue={authUser.whatsappNumber} /></label>{vendorProfileError && <p className="vendor-profile-error">{vendorProfileError}</p>}<div><button type="button" onClick={() => { setVendorProfileEditing(false); setVendorProfileError(""); }}>Cancel</button><button type="submit">Save profile</button></div></form> : <><dl><div><dt>Contact person</dt><dd>{authUser.fullName}</dd></div><div><dt>Contact number</dt><dd>{authUser.contactNumber || "Not added"}</dd></div><div><dt>WhatsApp</dt><dd>{authUser.whatsappNumber || "Not added"}</dd></div><div><dt>Account type</dt><dd>Billboard inventory owner</dd></div><div><dt>Company ID</dt><dd>#{authUser.companyId || authUser.id}</dd></div><div><dt>Verification</dt><dd>{authUser.accountStatus === "active" ? "Approved" : "Pending"}</dd></div></dl><button type="button" onClick={() => setVendorProfileEditing(true)}>Edit profile</button></>}</div></>}
                 {vendorDashboardTab === "profile" && <section className="vendor-document-section"><div><span>DOCUMENTATION</span><h2>Company documents</h2><p>Upload, replace or remove your verification documents.</p></div>{vendorDocumentError && <p className="vendor-profile-error">{vendorDocumentError}</p>}{vendorDocumentsLoading ? <p className="vendor-document-loading">Loading documents…</p> : <div className="vendor-document-list">{vendorDocumentSlots.map((slot) => { const document = vendorDocuments.find((item) => item.document_type === slot.type); return <article key={slot.type}><div><strong>{slot.title}</strong><small>{document ? document.file_name : slot.help}</small></div><label className="vendor-document-upload">{document ? "Replace" : "Upload"}<input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => void uploadVendorDocument(slot.type, event.target.files?.[0] ?? null)} /></label>{document && <button type="button" onClick={() => void removeVendorDocument(slot.type)}>Remove</button>}</article>; })}</div>}</section>}
               </main>
@@ -2659,10 +2796,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
         </div>
       )}
 
-      {vendorBillboardEditor && <div className="vendor-billboard-editor-backdrop" role="presentation"><section className="vendor-billboard-editor" role="dialog" aria-modal="true" aria-labelledby="vendor-billboard-editor-title"><header><div><span>BILLBOARD MANAGEMENT</span><h2 id="vendor-billboard-editor-title">{vendorBillboardEditor.name}</h2><p>Add the billboard details, location data and selling prices that advertisers will see after approval.</p></div><button type="button" aria-label="Close billboard editor" onClick={() => setVendorBillboardEditor(null)}>×</button></header><form key={vendorBillboardEditor.page} onSubmit={saveVendorBillboardDetails}><section><h3>Billboard details</h3><div className="vendor-billboard-editor-grid"><label>Billboard name<input name="name" defaultValue={vendorBillboardEditor.name} required /></label><label>Billboard type<input name="type" defaultValue={vendorBillboardEditor.type} required /></label><label>Road / location<input name="road" defaultValue={vendorBillboardEditor.road} required /></label><label>Size<input name="size" defaultValue={vendorBillboardEditor.size} required /></label><label>Landmark / facing details<input name="landmark" defaultValue={vendorBillboardEditor.landmark} required /></label><label>Audience / traffic<input name="traffic" defaultValue={vendorBillboardEditor.traffic} required /></label><label className="wide">Google Maps link<input name="map" type="url" defaultValue={vendorBillboardEditor.map} required /></label></div></section><section><div className="vendor-billboard-price-heading"><div><span>SELLING PRICES</span><h3>Advertiser booking price</h3><p>Enter the price for each booking option. Prices remain pending admin review until published.</p></div><strong>VAT shown separately at booking</strong></div><div className="vendor-billboard-price-grid">{(["hourly", "day", "week", "month"] as const).map((period) => <label key={period}>{period === "day" ? "Day price (AED)" : `${period[0].toUpperCase() + period.slice(1)} price (AED)`}<input name={period} type="number" min="0" step="1" defaultValue={vendorBillboardPrices[vendorBillboardEditor.page]?.[period] || ""} placeholder="Enter price" /></label>)}</div></section><footer><button type="button" className="vendor-editor-secondary" onClick={() => setVendorBillboardEditor(null)}>Back to billboards</button><button type="submit" className="vendor-dashboard-add">Save billboard details & prices</button></footer></form></section></div>}
+      {vendorBillboardEditor && <div className="vendor-billboard-editor-backdrop" role="presentation"><section className="vendor-billboard-editor" role="dialog" aria-modal="true" aria-labelledby="vendor-billboard-editor-title"><header><div><span>BILLBOARD MANAGEMENT</span><h2 id="vendor-billboard-editor-title">{vendorBillboardEditor.name}</h2><p>Add the billboard details, location data and selling prices that advertisers will see after approval.</p></div><button type="button" aria-label="Close billboard editor" onClick={() => setVendorBillboardEditor(null)}>×</button></header><form key={vendorBillboardEditor.page} onSubmit={saveVendorBillboardDetails}><section><h3>Billboard details</h3><div className="vendor-billboard-editor-grid"><label>Billboard name<input name="name" defaultValue={vendorBillboardEditor.name} required /></label><label>Billboard type<input name="type" defaultValue={vendorBillboardEditor.type} required /></label><label>Road / location<input name="road" defaultValue={vendorBillboardEditor.road} required /></label><label>Size<input name="size" defaultValue={vendorBillboardEditor.size} required /></label><label>Landmark / facing details<input name="landmark" defaultValue={vendorBillboardEditor.landmark} required /></label><label>Audience / traffic<input name="traffic" defaultValue={vendorBillboardEditor.traffic} required /></label><label className="wide">Google Maps link<input name="map" type="url" defaultValue={vendorBillboardEditor.map} required /></label></div></section><section><div className="vendor-billboard-price-heading"><div><span>SELLING PRICES</span><h3>Advertiser booking price</h3><p>Enter the price for each booking option. Prices remain pending admin review until published.</p></div><strong>VAT shown separately at booking</strong></div><div className="vendor-billboard-price-grid">{(["hourly", "day", "week", "month"] as const).map((period) => <label key={period}>{period === "day" ? `Day price (${currency})` : `${period[0].toUpperCase() + period.slice(1)} price (${currency})`}<input name={period} type="number" min="0" step="1" defaultValue={vendorBillboardPrices[vendorBillboardEditor.page]?.[period] || ""} placeholder="Enter price" /></label>)}</div></section><footer><button type="button" className="vendor-editor-secondary" onClick={() => setVendorBillboardEditor(null)}>Back to billboards</button><button type="submit" className="vendor-dashboard-add">Save billboard details & prices</button></footer></form></section></div>}
 
-      <section className="inventory-map-header" id="inventory-map" aria-label="UAE billboard inventory map">
-        <UaeInventoryMap onSelectEmirate={openCampaignForEmirate} onExploreAll={() => openCampaign()} />
+      <section className="inventory-map-header" id="inventory-map" aria-label={`${country.name} billboard inventory map`}>
+        <CountryInventoryMap country={country} onSelectMarket={openCampaignForEmirate} onExploreAll={() => openCampaign()} />
       </section>
 
       <section className="stats-strip">
@@ -2686,10 +2823,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
             <div className="filter-panel-heading"><div><span>SMART FILTERS</span><strong>Find your audience</strong></div><button type="button" onClick={resetMarketplaceFilters}>Reset</button></div>
 
             <fieldset className="filter-group">
-              <legend>Emirate <span>— select several</span></legend>
+              <legend>{country.regionLabel} <span>— select several</span></legend>
               <div className="filter-pills">
                 <button type="button" className={marketEmirates.length === 0 ? "active" : ""} onClick={() => { setMarketEmirates([]); setMarketLocation(""); }}>All</button>
-                {emirates.map((emirate) => <button type="button" key={emirate} className={marketEmirates.includes(emirate) ? "active" : ""} onClick={() => { setMarketEmirates((current) => current.includes(emirate) ? current.filter((item) => item !== emirate) : [...current, emirate]); setMarketLocation(""); }}>{emirate === "Ras Al Khaimah" ? "RAK" : emirate === "Umm Al Quwain" ? "UAQ" : emirate}</button>)}
+                {marketRegions.map((region) => <button type="button" key={region} className={marketEmirates.includes(region) ? "active" : ""} onClick={() => { setMarketEmirates((current) => current.includes(region) ? current.filter((item) => item !== region) : [...current, region]); setMarketLocation(""); }}>{region}</button>)}
               </div>
             </fieldset>
 
@@ -2711,7 +2848,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
               </div>
             </fieldset>
 
-            <label className="filter-range">Max price / 4 weeks (AED)<input aria-label="Maximum price for four weeks" type="range" min="10000" max="500000" step="10000" value={marketMaxPrice} onChange={(event) => setMarketMaxPrice(Number(event.target.value))} /><span>Up to AED {formatMoney(marketMaxPrice)}</span></label>
+            <label className="filter-range">Max price / 4 weeks ({currency})<input aria-label="Maximum price for four weeks" type="range" min="10000" max="500000" step="10000" value={marketMaxPrice} onChange={(event) => setMarketMaxPrice(Number(event.target.value))} /><span>Up to {currency} {formatMoney(marketMaxPrice)}</span></label>
 
             <fieldset className="filter-group">
               <legend>Availability</legend>
@@ -2729,7 +2866,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
             <div className="results-meta">
               <div className="results-count">
                 <strong>{visibleListings.length}</strong>
-                <span><b>Matching locations</b><small>Verified UAE outdoor media inventory</small></span>
+                <span><b>Matching locations</b><small>Verified {country.marketLabel} outdoor media inventory</small></span>
               </div>
               <label className="results-sort"><span>Sort by</span><select aria-label="Sort billboard locations"><option>Recommended</option><option>Price: low to high</option><option>Highest reach</option></select></label>
             </div>
@@ -2751,14 +2888,14 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                     <div className="listing-details"><span>{item.format}</span><span>{item.audience}</span></div>
                     <div className="vendor-line"><span>{item.vendor.charAt(0)}</span>{item.vendor}<b>✓</b></div>
                     <div className="listing-footer">
-                      <div><small>From</small><strong>AED {formatMoney(item.price)}</strong><small>/ week</small></div>
+                      <div><small>From</small><strong>{currency} {formatMoney(item.price)}</strong><small>/ week</small></div>
                       <button className="button button-outline" onClick={() => openCampaign(item)}>View & book</button>
                     </div>
                   </div>
                 </article>
               ))}
             </div>
-            {visibleListings.length === 0 && <div className="empty-state"><strong>No exact matches yet.</strong><span>Adjust the filters or reset them to see more UAE inventory.</span><button type="button" className="button button-dark" onClick={resetMarketplaceFilters}>Reset filters</button></div>}
+            {visibleListings.length === 0 && <div className="empty-state"><strong>No exact matches yet.</strong><span>Adjust the filters or reset them to see more {country.marketLabel} inventory.</span><button type="button" className="button button-dark" onClick={resetMarketplaceFilters}>Reset filters</button></div>}
           </div>
         </div>
       </section>
@@ -2776,7 +2913,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
 
       <footer>
         <a className="brand footer-brand" href="#inventory-map"><span className="brand-mark">A</span><span>ASNads</span></a>
-        <p>The UAE marketplace for impactful outdoor advertising.</p>
+        <p>The {country.marketLabel} marketplace for impactful outdoor advertising.</p>
         <div><a href="#marketplace">Marketplace</a><a href="#vendor-registration" onClick={(event) => { event.preventDefault(); openVendor(); }}>Vendors</a><a href="#how-it-works">How it works</a></div>
         <small>© 2026 ASNads. Built for advertisers and media owners.</small>
       </footer>
@@ -2825,16 +2962,16 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                     <div className="campaign-management-parent" role="row">
                       <button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${campaign.name}`} onClick={() => setExpandedCampaignIds((current) => current.includes(campaign.id) ? current.filter((id) => id !== campaign.id) : [...current, campaign.id])}>{expanded ? "⌄" : "›"}</button>
                       <button type="button" className="campaign-name-cell" onClick={() => setCampaignDetailsId(campaign.id)}><i /><span><strong>{campaign.name}</strong><small>{campaign.adGroups.length} ad group{campaign.adGroups.length === 1 ? "" : "s"} · {campaign.objective}</small></span></button>
-                      <span>AED {formatMoney(campaign.budget)}</span>
+                      <span>{currency} {formatMoney(campaign.budget)}</span>
                       <span><b className={`campaign-status-dot ${campaign.status === "Eligible" ? "eligible" : ""}`} />{campaign.status}</span>
                       <span>{campaign.campaignType}</span>
                       <span>{campaign.startDate}</span>
                       <button type="button" className="campaign-view-details" onClick={() => setCampaignDetailsId(campaign.id)}>View details</button>
                     </div>
-                    {expanded && <div className="campaign-adgroup-rows">{campaign.adGroups.map((group) => <button type="button" key={group.id} onClick={() => setCampaignDetailsId(campaign.id)}><span /><strong><i>⌕</i>{group.name}<small>{group.billboardNames.length} selected billboard{group.billboardNames.length === 1 ? "" : "s"}</small></strong><span>AED {formatMoney(group.budget)}</span><span><b className="campaign-status-dot eligible" />Eligible</span><span>{group.category}</span><span>{campaign.startDate}</span><em>Open</em></button>)}</div>}
+                    {expanded && <div className="campaign-adgroup-rows">{campaign.adGroups.map((group) => <button type="button" key={group.id} onClick={() => setCampaignDetailsId(campaign.id)}><span /><strong><i>⌕</i>{group.name}<small>{group.billboardNames.length} selected billboard{group.billboardNames.length === 1 ? "" : "s"}</small></strong><span>{currency} {formatMoney(group.budget)}</span><span><b className="campaign-status-dot eligible" />Eligible</span><span>{group.category}</span><span>{campaign.startDate}</span><em>Open</em></button>)}</div>}
                   </div>;
                 })}
-                <div className="campaign-management-total"><span /><strong>Total: all enabled campaigns</strong><span>AED {formatMoney(createdCampaigns.reduce((total, campaign) => total + campaign.budget, 0))}</span><span /><span /><span /><span /></div>
+                <div className="campaign-management-total"><span /><strong>Total: all enabled campaigns</strong><span>{currency} {formatMoney(createdCampaigns.reduce((total, campaign) => total + campaign.budget, 0))}</span><span /><span /><span /><span /></div>
               </div>
             ) : (
               <div className="campaign-dashboard-empty"><span>＋</span><strong>No campaigns created yet</strong><p>Create your first campaign. When it is submitted, its Digital, Static, Kiosk, Mall, Road, Bridge and Building ad groups will appear here.</p><button type="button" onClick={openCampaignFromDashboard}>Create your first campaign</button></div>
@@ -2848,10 +2985,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
           <section className="campaign-details-panel" role="dialog" aria-modal="true" aria-labelledby="campaign-details-title">
             <button type="button" aria-label="Close campaign details" onClick={() => setCampaignDetailsId("")}>×</button>
             <span>CAMPAIGN DETAILS</span><h2 id="campaign-details-title">{selectedCampaignDetails.name}</h2>
-            <div className="campaign-details-summary"><article><small>Status</small><strong>{selectedCampaignDetails.status}</strong></article><article><small>Total budget</small><strong>AED {formatMoney(selectedCampaignDetails.budget)}</strong></article><article><small>Campaign type</small><strong>{selectedCampaignDetails.campaignType}</strong></article><article><small>Objective</small><strong>{selectedCampaignDetails.objective}</strong></article></div>
+            <div className="campaign-details-summary"><article><small>Status</small><strong>{selectedCampaignDetails.status}</strong></article><article><small>Total budget</small><strong>{currency} {formatMoney(selectedCampaignDetails.budget)}</strong></article><article><small>Campaign type</small><strong>{selectedCampaignDetails.campaignType}</strong></article><article><small>Objective</small><strong>{selectedCampaignDetails.objective}</strong></article></div>
             <div className="campaign-details-dates"><div><small>Start date</small><strong>{selectedCampaignDetails.startDate}</strong></div><div><small>End date</small><strong>{selectedCampaignDetails.endDate}</strong></div><div><small>Emirates</small><strong>{selectedCampaignDetails.emirates.join(", ") || "Not selected"}</strong></div></div>
             <h3>Ad groups and selected billboards</h3>
-            <div className="campaign-details-groups">{selectedCampaignDetails.adGroups.map((group, index) => <article key={group.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{group.name}</strong><small>{group.category}</small>{group.billboardNames.map((name) => <p key={name}>✓ {name}</p>)}</div><b>AED {formatMoney(group.budget)}</b></article>)}</div>
+            <div className="campaign-details-groups">{selectedCampaignDetails.adGroups.map((group, index) => <article key={group.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{group.name}</strong><small>{group.category}</small>{group.billboardNames.map((name) => <p key={name}>✓ {name}</p>)}</div><b>{currency} {formatMoney(group.budget)}</b></article>)}</div>
           </section>
         </div>
       )}
@@ -2871,6 +3008,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                 <span className="auth-kicker">{authPurpose === "admin" ? "ADMINISTRATOR LOGIN" : authPurpose === "owner" ? "BILLBOARD OWNER LOGIN" : "WELCOME BACK"}</span>
                 <h2 id="auth-title">{authPurpose === "admin" ? "Control company access" : authPurpose === "owner" ? "Access your inventory" : "Access your campaigns"}</h2>
                 <p>{authPurpose === "admin" ? "Use your authorised ASNads administrator account to manage advertising and inventory companies." : authPurpose === "owner" ? "Sign in with your verified media company email to add and manage billboards." : "Sign in with your verified company email."}</p>
+                {previewMode && <div className="demo-login-note"><strong>Temporary preview account</strong><span>{authPurpose === "owner" ? "vendor" : authPurpose}@{country.code}.asnads.com</span><small>Password: {TEMPORARY_DEMO_PASSWORD}</small></div>}
                 <label>Company email<input name="email" type="email" autoComplete="username" required value={rememberedEmail} onChange={(event) => setRememberedEmail(event.target.value)} placeholder="name@company.com" /></label>
                 <label>Password<span className="password-input-wrap"><input name="password" type={showLoginPassword ? "text" : "password"} autoComplete="current-password" required placeholder="Enter your password" /><button type="button" className="password-visibility-toggle" aria-label="Hold to show password" aria-pressed={showLoginPassword} onPointerDown={() => beginPasswordReveal("login", setShowLoginPassword)} onPointerUp={() => endPasswordReveal("login", setShowLoginPassword)} onPointerLeave={() => endPasswordReveal("login", setShowLoginPassword)} onPointerCancel={() => endPasswordReveal("login", setShowLoginPassword)} onContextMenu={(event) => event.preventDefault()}><EyeVisibilityIcon hidden={showLoginPassword} /></button></span></label>
                 <label className="remember-login"><input name="remember" type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} /> <span>Remember my email and keep me signed in on this device</span></label>
@@ -2914,8 +3052,8 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   <label>Company name<input name="companyName" required placeholder="Legal company name" /></label>
                   <label>Business sector<input name="businessSector" required placeholder="e.g. Retail, Automotive" /></label>
                   <label>Contact person<input name="contactPerson" required placeholder="Full name" /></label>
-                  <label>Contact number<input name="contactNumber" required type="tel" placeholder="+971 50 000 0000" /></label>
-                  <label>WhatsApp number<input name="whatsappNumber" type="tel" placeholder="+971 50 000 0000" /></label>
+                  <label>Contact number<input name="contactNumber" required type="tel" placeholder={country.phonePlaceholder} /></label>
+                  <label>WhatsApp number<input name="whatsappNumber" type="tel" placeholder={country.phonePlaceholder} /></label>
                   <label>Company email<input name="companyEmail" required type="email" autoComplete="email" placeholder="name@company.com" /></label>
                   <label>Password<span className="password-input-wrap"><input name="password" required type={showRegistrationPasswords ? "text" : "password"} autoComplete="new-password" minLength={8} pattern="(?=.*[A-Z])(?=.*[0-9]).{8,}" title="Use at least 8 characters, including 1 capital letter and 1 number" placeholder="Minimum 8 characters" /><button type="button" className="password-visibility-toggle" aria-label="Hold to show passwords" aria-pressed={showRegistrationPasswords} onPointerDown={() => beginPasswordReveal("registration", setShowRegistrationPasswords)} onPointerUp={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onPointerLeave={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onPointerCancel={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onContextMenu={(event) => event.preventDefault()}><EyeVisibilityIcon hidden={showRegistrationPasswords} /></button></span></label>
                   <label>Confirm password<span className="password-input-wrap"><input name="confirmPassword" required type={showRegistrationPasswords ? "text" : "password"} autoComplete="new-password" minLength={8} pattern="(?=.*[A-Z])(?=.*[0-9]).{8,}" title="Use at least 8 characters, including 1 capital letter and 1 number" placeholder="Enter password again" /><button type="button" className="password-visibility-toggle" aria-label="Hold to show passwords" aria-pressed={showRegistrationPasswords} onPointerDown={() => beginPasswordReveal("registration", setShowRegistrationPasswords)} onPointerUp={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onPointerLeave={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onPointerCancel={() => endPasswordReveal("registration", setShowRegistrationPasswords)} onContextMenu={(event) => event.preventDefault()}><EyeVisibilityIcon hidden={showRegistrationPasswords} /></button></span></label>
@@ -3024,17 +3162,18 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                 {vendorStep === 1 && <>
                 <div className="detail-section" id="inventory-location">
                   <div className="detail-heading"><span>01</span><div><strong>Billboard location</strong><small>Add precise map and site information</small></div></div>
-                  <div className="billboard-name-guide"><div><strong>Billboard name is created automatically</strong><span>With exit: road code + exit + vendor short name + number. Without exit: 2 location letters + 2 landmark letters + vendor short name + number.</span></div><code>{createBillboardName(vendorShortName, billboardIdentities[0]) || "SZR-47-SKY-01"}</code></div>
+                  <div className="billboard-name-guide"><div><strong>Billboard name is created automatically</strong><span>With exit: road code + exit + vendor short name + number. Without exit: 2 location letters + 2 landmark letters + vendor short name + number.</span></div><code>{createBillboardName(vendorShortName, billboardIdentities[0]) || `${country.code.toUpperCase()}-LOC-01`}</code></div>
                   <div className="form-grid">
-                    <label>1. Emirate<select required value={billboardIdentities[0].emirate} onChange={(e) => updateBillboardIdentity(0, "emirate", e.target.value)}><option value="" disabled>Select Emirate</option><option>Dubai</option><option>Abu Dhabi</option><option>Sharjah</option><option>Ajman</option><option>Ras Al Khaimah</option><option>Fujairah</option><option>Umm Al Quwain</option></select></label>
-                    <label>2. Billboard type<select required value={billboardIdentities[0].billboardType} onChange={(e) => handleInventoryTypeChange(e.target.value)}><option value="" disabled>Select billboard type</option>{categories.slice(1).map((c) => <option key={c}>{c}</option>)}</select></label>
+                    <label>1. {locationDirectory.divisionLabel}<select required value={billboardIdentities[0].emirate} onChange={(e) => updateBillboardDivision(0, e.target.value)}><option value="" disabled>Select {locationDirectory.divisionLabel.toLowerCase()}</option>{administrativeDivisions.map((division) => <option key={division}>{division}</option>)}</select></label>
+                    <label>2. {locationDirectory.cityLabel}<input required list="billboard-city-options-1" disabled={!billboardIdentities[0].emirate} value={billboardIdentities[0].city} onChange={(e) => updateBillboardIdentity(0, "city", e.target.value)} placeholder={billboardIdentities[0].emirate ? `Search or enter a ${locationDirectory.cityLabel.toLowerCase()}` : `Select ${locationDirectory.divisionLabel.toLowerCase()} first`} /><datalist id="billboard-city-options-1">{(locationDirectory.divisions[billboardIdentities[0].emirate] ?? []).map((city) => <option key={city} value={city} />)}</datalist><small className="field-hint">Choose a suggestion or type another city.</small></label>
+                    <label>3. Billboard type<select required value={billboardIdentities[0].billboardType} onChange={(e) => handleInventoryTypeChange(e.target.value)}><option value="" disabled>Select billboard type</option>{categories.slice(1).map((c) => <option key={c}>{c}</option>)}</select></label>
                     {!isVendorAccount(authUser) && <label>3. Vendor short name<input required minLength={2} maxLength={5} pattern="[A-Za-z0-9]+" value={vendorShortName} onChange={(e) => setVendorShortName(e.target.value.toUpperCase())} placeholder="e.g. SKY" /><small className="field-hint">2–5 letters used in every billboard ID</small></label>}
                     {!isVendorAccount(authUser) && <label>Vendor billboard number<input required type="number" min="1" value={billboardIdentities[0].vendorNumber} onChange={(e) => updateBillboardIdentity(0, "vendorNumber", e.target.value)} /><small className="field-hint">Your sequence number for this billboard</small></label>}
                     <label className="full generated-name-field">Automatic billboard name / unique ID<input readOnly value={createBillboardName(vendorShortName, billboardIdentities[0])} placeholder="Complete the fields below to generate the name" /></label>
                     {billboardIdentities[0].billboardType === "Digital Kiosk" ? (
                       <label>4. Major Mall<select required value={billboardIdentities[0].mallName} onChange={(e) => updateDigitalKioskMall(0, e.target.value)}><option value="" disabled>Select major mall</option>{digitalKioskMalls.map((mall) => <option key={mall}>{mall}</option>)}</select><small className="field-hint">The mall name will be used as the billboard location.</small></label>
                     ) : (
-                      <label>4. Location / road name<input required value={billboardIdentities[0].location} onChange={(e) => updateBillboardIdentity(0, "location", e.target.value)} placeholder="e.g. Sheikh Zayed Road" /></label>
+                      <label>4. Location / road name<input required value={billboardIdentities[0].location} onChange={(e) => updateBillboardIdentity(0, "location", e.target.value)} placeholder={`e.g. ${primaryRoad}`} /></label>
                     )}
                     {billboardIdentities[0].billboardType === "Digital Kiosk" ? <>
                       <label>Location<input required value={billboardIdentities[0].landmark} onChange={(e) => updateBillboardIdentity(0, "landmark", e.target.value)} placeholder="e.g. Ground Floor, Fashion Avenue" /></label>
@@ -3042,13 +3181,13 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                       <label className="full">Full address<input required placeholder="Mall, floor, zone and entrance" /></label>
                       <label className="full">5. Kiosk size<input required placeholder="e.g. 55-inch portrait screen or 1.2 × 2 m" /></label>
                     </> : <>
-                      <label>Nearest landmark<input required={!billboardIdentities[0].exitNumber.trim()} value={billboardIdentities[0].landmark} onChange={(e) => updateBillboardIdentity(0, "landmark", e.target.value)} placeholder="e.g. Dubai Mall" /><small className="field-hint">Required when there is no exit number</small></label>
+                      <label>Nearest landmark<input required={!billboardIdentities[0].exitNumber.trim()} value={billboardIdentities[0].landmark} onChange={(e) => updateBillboardIdentity(0, "landmark", e.target.value)} placeholder={`e.g. landmark in ${billboardIdentities[0].city || country.shortName}`} /><small className="field-hint">Required when there is no exit number</small></label>
                       <label className="full">Exit number (if available)<input value={billboardIdentities[0].exitNumber} onChange={(e) => updateBillboardIdentity(0, "exitNumber", e.target.value)} placeholder="e.g. 47" /></label>
                       <label className="full">Full address<input required placeholder="Road, area, nearest landmark" /></label>
                       <label>5. Billboard width (metres)<input required type="number" min="0.1" step="0.1" placeholder="24" /></label>
                       <label>Billboard height (metres)<input required type="number" min="0.1" step="0.1" placeholder="8" /></label>
                     </>}
-                    <label>6. Facing towards<input required placeholder="e.g. Dubai-bound traffic" /></label>
+                    <label>6. Facing towards<input required placeholder={`e.g. ${billboardIdentities[0].city || country.shortName}-bound traffic`} /></label>
                     <label>Traffic volume<select required defaultValue=""><option value="" disabled>Select traffic level</option><option>Very high</option><option>High</option><option>Medium</option><option>Low</option><option>Pedestrian traffic</option></select></label>
                     <label className="full">7. Traffic details<textarea required placeholder="Number of lanes, inbound or outbound flow, peak traffic times and nearby junctions." /></label>
                     <label className="full">8. Google Maps link<input required type="url" value={billboardIdentities[0].mapsLink} onChange={(e) => updateBillboardIdentity(0, "mapsLink", e.target.value)} placeholder="https://maps.google.com/..." /></label>
@@ -3094,21 +3233,22 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   <div className="detail-section additional-billboard" key={`additional-billboard-${index}`}>
                     <div className="detail-heading"><span>{index + 2}</span><div><strong>Billboard {index + 2}</strong><small>Complete location, audience and facing details</small></div></div>
                     <div className="form-grid">
-                      <label>Emirate<select required value={billboardIdentities[index + 1].emirate} onChange={(e) => updateBillboardIdentity(index + 1, "emirate", e.target.value)}><option value="" disabled>Select Emirate</option><option>Dubai</option><option>Abu Dhabi</option><option>Sharjah</option><option>Ajman</option><option>Ras Al Khaimah</option><option>Fujairah</option><option>Umm Al Quwain</option></select></label>
+                      <label>{locationDirectory.divisionLabel}<select required value={billboardIdentities[index + 1].emirate} onChange={(e) => updateBillboardDivision(index + 1, e.target.value)}><option value="" disabled>Select {locationDirectory.divisionLabel.toLowerCase()}</option>{administrativeDivisions.map((division) => <option key={division}>{division}</option>)}</select></label>
+                      <label>{locationDirectory.cityLabel}<input required list={`billboard-city-options-${index + 2}`} disabled={!billboardIdentities[index + 1].emirate} value={billboardIdentities[index + 1].city} onChange={(e) => updateBillboardIdentity(index + 1, "city", e.target.value)} placeholder={billboardIdentities[index + 1].emirate ? `Search or enter a ${locationDirectory.cityLabel.toLowerCase()}` : `Select ${locationDirectory.divisionLabel.toLowerCase()} first`} /><datalist id={`billboard-city-options-${index + 2}`}>{(locationDirectory.divisions[billboardIdentities[index + 1].emirate] ?? []).map((city) => <option key={city} value={city} />)}</datalist><small className="field-hint">Choose a suggestion or type another city.</small></label>
                       <label>Billboard type<select required value={billboardIdentities[index + 1].billboardType} onChange={(e) => updateBillboardType(index + 1, e.target.value)}><option value="" disabled>Select billboard type</option>{categories.slice(1).map((c) => <option key={c}>{c}</option>)}</select></label>
                       {!isVendorAccount(authUser) && <label>Vendor billboard number<input required type="number" min="1" value={billboardIdentities[index + 1].vendorNumber} onChange={(e) => updateBillboardIdentity(index + 1, "vendorNumber", e.target.value)} /><small className="field-hint">Vendor sequence number</small></label>}
                       <label className="generated-name-field">Automatic billboard name / unique ID<input readOnly value={createBillboardName(vendorShortName, billboardIdentities[index + 1])} placeholder="Generated automatically" /></label>
                       {billboardIdentities[index + 1].billboardType === "Digital Kiosk" ? (
                         <label>Major Mall<select required value={billboardIdentities[index + 1].mallName} onChange={(e) => updateDigitalKioskMall(index + 1, e.target.value)}><option value="" disabled>Select major mall</option>{digitalKioskMalls.map((mall) => <option key={mall}>{mall}</option>)}</select><small className="field-hint">The mall name will be used as the billboard location.</small></label>
                       ) : (
-                        <label>Location / road name<input required value={billboardIdentities[index + 1].location} onChange={(e) => updateBillboardIdentity(index + 1, "location", e.target.value)} placeholder="e.g. Al Khail Road" /></label>
+                        <label>Location / road name<input required value={billboardIdentities[index + 1].location} onChange={(e) => updateBillboardIdentity(index + 1, "location", e.target.value)} placeholder={`e.g. ${secondaryRoad}`} /></label>
                       )}
                       {billboardIdentities[index + 1].billboardType === "Digital Kiosk" ? <>
                         <label>Location<input required value={billboardIdentities[index + 1].landmark} onChange={(e) => updateBillboardIdentity(index + 1, "landmark", e.target.value)} placeholder="e.g. Ground Floor, Fashion Avenue" /></label>
                         <label className="full">Nearby major shop<input value={billboardIdentities[index + 1].nearbyShop} onChange={(e) => updateBillboardIdentity(index + 1, "nearbyShop", e.target.value)} placeholder="e.g. Near Apple Store" /></label>
                         <label className="full">Kiosk size<input required placeholder="e.g. 55-inch portrait screen or 1.2 × 2 m" /></label>
                       </> : <>
-                        <label>Nearest landmark<input required={!billboardIdentities[index + 1].exitNumber.trim()} value={billboardIdentities[index + 1].landmark} onChange={(e) => updateBillboardIdentity(index + 1, "landmark", e.target.value)} placeholder="e.g. Business Bay" /><small className="field-hint">Required when there is no exit number</small></label>
+                        <label>Nearest landmark<input required={!billboardIdentities[index + 1].exitNumber.trim()} value={billboardIdentities[index + 1].landmark} onChange={(e) => updateBillboardIdentity(index + 1, "landmark", e.target.value)} placeholder={`e.g. landmark in ${billboardIdentities[index + 1].city || country.shortName}`} /><small className="field-hint">Required when there is no exit number</small></label>
                         <label className="full">Exit number (if available)<input value={billboardIdentities[index + 1].exitNumber} onChange={(e) => updateBillboardIdentity(index + 1, "exitNumber", e.target.value)} placeholder="e.g. 47" /></label>
                         <label>Width (metres)<input required type="number" min="0.1" step="0.1" placeholder="24" /></label>
                         <label>Height (metres)<input required type="number" min="0.1" step="0.1" placeholder="8" /></label>
@@ -3179,10 +3319,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                               <div className="billboard-location-cell" role="cell"><small>Location</small><strong>{identity.location || identity.emirate || "Location pending"}</strong><span>{identity.billboardType || "Type pending"}</span></div>
                               {!rowIsStatic && <label role="cell"><span>Hourly</span><input aria-label={`${billboardLabel} hourly price`} type="number" min="0" value={profile.hourly} onChange={(event) => updateHourlyPrice(targetKey, event.target.value)} placeholder="150" /></label>}
                               {!rowIsStatic && <label role="cell"><span>Day</span><input aria-label={`${billboardLabel} day price`} readOnly value={profile.daily} placeholder="Auto" /></label>}
-                              <label role="cell"><span>{rowIsStatic ? "15 Days Price (AED)" : "Week"}</span><input aria-label={`${billboardLabel} ${rowIsStatic ? "15-day" : "weekly"} price`} readOnly={!rowIsStatic} type={rowIsStatic ? "number" : "text"} min={rowIsStatic ? 0 : undefined} value={profile.weekly} onChange={rowIsStatic ? (event) => updateWeeklyPrice(targetKey, event.target.value) : undefined} placeholder={rowIsStatic ? "25000" : "Auto"} /></label>
-                              <label role="cell"><span>{rowIsStatic ? "1 Month Price (AED)" : "Month"}</span><input aria-label={`${billboardLabel} monthly price`} readOnly value={profile.monthly} placeholder="Auto" /></label>
+                              <label role="cell"><span>{rowIsStatic ? `15 Days Price (${currency})` : "Week"}</span><input aria-label={`${billboardLabel} ${rowIsStatic ? "15-day" : "weekly"} price`} readOnly={!rowIsStatic} type={rowIsStatic ? "number" : "text"} min={rowIsStatic ? 0 : undefined} value={profile.weekly} onChange={rowIsStatic ? (event) => updateWeeklyPrice(targetKey, event.target.value) : undefined} placeholder={rowIsStatic ? "25000" : "Auto"} /></label>
+                              <label role="cell"><span>{rowIsStatic ? `1 Month Price (${currency})` : "Month"}</span><input aria-label={`${billboardLabel} monthly price`} readOnly value={profile.monthly} placeholder="Auto" /></label>
                               <div className="vendor-vat-breakdown" role="cell" aria-label={`${billboardLabel} VAT totals`}>
-                                {rowPriceEntries.map((price) => <article key={price.label}><strong>{price.label}</strong><span>Media <b>AED {formatMoneyWithFils(price.amount)}</b></span><span>VAT 5% <b>AED {formatMoneyWithFils(price.amount * 0.05)}</b></span><span>Total <b>AED {formatMoneyWithFils(price.amount * 1.05)}</b></span></article>)}
+                                {rowPriceEntries.map((price) => <article key={price.label}><strong>{price.label}</strong><span>Media <b>{currency} {formatMoneyWithFils(price.amount)}</b></span><span>{country.vatLabel} <b>{currency} {formatMoneyWithFils(price.amount * 0.05)}</b></span><span>Total <b>{currency} {formatMoneyWithFils(price.amount * 1.05)}</b></span></article>)}
                               </div>
                             </article>
                           );
@@ -3196,7 +3336,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                         <article key={group.id} className={activePricingGroupId === group.id ? "pricing-group-card active" : "pricing-group-card"}>
                           <div className="pricing-group-head">
                             <button type="button" onClick={() => setActivePricingGroupId(group.id)}>{activePricingGroupId === group.id ? "✓ Pricing this group" : "Use this group"}</button>
-                            <input aria-label={`Group ${group.id} name`} value={group.name} onChange={(event) => updatePricingGroup(group.id, { name: event.target.value })} placeholder="e.g. Sheikh Zayed Road Group" />
+                            <input aria-label={`Group ${group.id} name`} value={group.name} onChange={(event) => updatePricingGroup(group.id, { name: event.target.value })} placeholder={`e.g. ${primaryRoad} Group`} />
                             {pricingGroups.length > 1 && <button type="button" className="remove-group" onClick={() => { const remaining = pricingGroups.filter((item) => item.id !== group.id); setPricingGroups(remaining); if (activePricingGroupId === group.id) setActivePricingGroupId(remaining[0].id); }}>Remove</button>}
                           </div>
                           <div className="group-billboard-list">
@@ -3219,12 +3359,12 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                           <button type="button" className={(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") ? "selected" : ""} onClick={() => activePricingGroup && toggleGroupPackagePlan(activePricingGroup.id, "one_month")}><span>{(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") ? "✓" : "+"}</span><strong>1 Month Package</strong><small>One combined monthly price for this group</small></button>
                         </div>
                         <div className="direct-price-grid static-group-price-grid">
-                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("fifteen_days") && <label>15 Days Package Price (AED)<input type="number" min="0" value={activePriceProfile.weekly} onChange={(event) => updateGroupPackagePrice(pricingTargetKey, "weekly", event.target.value)} placeholder="e.g. 25000" /><small>Total price for every billboard selected in this group</small></label>}
-                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") && <label>1 Month Package Price (AED)<input type="number" min="0" value={activePriceProfile.monthly} onChange={(event) => updateGroupPackagePrice(pricingTargetKey, "monthly", event.target.value)} placeholder="e.g. 50000" /><small>Total monthly price for every billboard selected in this group</small></label>}
+                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("fifteen_days") && <label>15 Days Package Price ({currency})<input type="number" min="0" value={activePriceProfile.weekly} onChange={(event) => updateGroupPackagePrice(pricingTargetKey, "weekly", event.target.value)} placeholder="e.g. 25000" /><small>Total price for every billboard selected in this group</small></label>}
+                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") && <label>1 Month Package Price ({currency})<input type="number" min="0" value={activePriceProfile.monthly} onChange={(event) => updateGroupPackagePrice(pricingTargetKey, "monthly", event.target.value)} placeholder="e.g. 50000" /><small>Total monthly price for every billboard selected in this group</small></label>}
                         </div>
                         <div className="vendor-vat-breakdown group-vat-breakdown" aria-label="Group package VAT totals">
-                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("fifteen_days") && <article><strong>15 Days Package</strong><span>Media <b>AED {formatMoneyWithFils(Number(activePriceProfile.weekly) || 0)}</b></span><span>VAT 5% <b>AED {formatMoneyWithFils((Number(activePriceProfile.weekly) || 0) * 0.05)}</b></span><span>Total <b>AED {formatMoneyWithFils((Number(activePriceProfile.weekly) || 0) * 1.05)}</b></span></article>}
-                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") && <article><strong>1 Month Package</strong><span>Media <b>AED {formatMoneyWithFils(Number(activePriceProfile.monthly) || 0)}</b></span><span>VAT 5% <b>AED {formatMoneyWithFils((Number(activePriceProfile.monthly) || 0) * 0.05)}</b></span><span>Total <b>AED {formatMoneyWithFils((Number(activePriceProfile.monthly) || 0) * 1.05)}</b></span></article>}
+                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("fifteen_days") && <article><strong>15 Days Package</strong><span>Media <b>{currency} {formatMoneyWithFils(Number(activePriceProfile.weekly) || 0)}</b></span><span>{country.vatLabel} <b>{currency} {formatMoneyWithFils((Number(activePriceProfile.weekly) || 0) * 0.05)}</b></span><span>Total <b>{currency} {formatMoneyWithFils((Number(activePriceProfile.weekly) || 0) * 1.05)}</b></span></article>}
+                          {(activePricingGroup?.packagePlans ?? ["fifteen_days", "one_month"]).includes("one_month") && <article><strong>1 Month Package</strong><span>Media <b>{currency} {formatMoneyWithFils(Number(activePriceProfile.monthly) || 0)}</b></span><span>{country.vatLabel} <b>{currency} {formatMoneyWithFils((Number(activePriceProfile.monthly) || 0) * 0.05)}</b></span><span>Total <b>{currency} {formatMoneyWithFils((Number(activePriceProfile.monthly) || 0) * 1.05)}</b></span></article>}
                         </div>
                         <p className="auto-price-note">Select uploaded billboards, name the package, choose 15 days and/or 1 month, then enter an independent total package price.</p>
                       </div>
@@ -3246,7 +3386,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                       ))}
                     </div>
                   </div>
-                  <label className="base-price-label">{isStaticBillboard ? "Starting 15-day price (AED)" : "Starting hourly price (AED)"}
+                  <label className="base-price-label">{isStaticBillboard ? `Starting 15-day price (${currency})` : `Starting hourly price (${currency})`}
                     <input required type="number" min="1" value={isStaticBillboard ? baseWeeklyPrice : baseHourlyPrice} onChange={(e) => isStaticBillboard ? setBaseWeeklyPrice(Number(e.target.value)) : setBaseHourlyPrice(Number(e.target.value))} />
                     <small>{isStaticBillboard ? "The one-month price is calculated from this 15-day rate." : "All longer booking prices are calculated from this hourly rate."}</small>
                   </label>
@@ -3311,7 +3451,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   </>}
                   <div className="price-preview">
                     <div><span>Advertiser price</span><small>{selectedPeriodRule.label} rate {peakAdjustment > 0 ? `+ ${peakAdjustment}% peak surcharge` : "· standard schedule"}</small></div>
-                    <strong>AED {formatMoney(calculatedPrice)}<small> / {billingPeriod}</small></strong>
+                    <strong>{currency} {formatMoney(calculatedPrice)}<small> / {billingPeriod}</small></strong>
                   </div>
                   <p className="pricing-advice"><b>How it works:</b> {isStaticBillboard ? "static pricing starts from the minimum 15-day rate. One month is calculated as two 15-day periods, with no weekly, peak-day or peak-hour charges." : "pricing starts from the hourly rate. A full day receives 5% off, a week receives 10% off and a month receives 20% off. Peak surcharges are added afterward for transparent pricing."}</p>
                 </div>
@@ -3383,8 +3523,8 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   <div className="form-grid">
                     <label>Company name<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? "AdVista Demo Company" : undefined} placeholder="Legal company name" /></label>
                     <label>Contact person<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? "Demo Advertiser" : undefined} placeholder="Full name" /></label>
-                    <label>Contact number<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? "+971 50 000 0000" : undefined} type="tel" placeholder="+971 50 000 0000" /></label>
-                    <label>WhatsApp number<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? "+971 50 000 0000" : undefined} type="tel" placeholder="+971 50 000 0000" /></label>
+                    <label>Contact number<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? country.phonePlaceholder : undefined} type="tel" placeholder={country.phonePlaceholder} /></label>
+                    <label>WhatsApp number<input required={!isCampaignTestMode} defaultValue={isCampaignTestMode ? country.phonePlaceholder : undefined} type="tel" placeholder={country.phonePlaceholder} /></label>
                     <label>Company email
                       <input required type="email" placeholder="name@company.com" value={campaignEmail} onChange={(event) => setCampaignEmail(event.target.value)} />
                     </label>
@@ -3454,19 +3594,19 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   </div>}
                   <button type="button" role="checkbox" aria-checked={allCampaignEmiratesSelected} className={`select-all-emirates ${allCampaignEmiratesSelected ? "selected" : ""}`} onClick={toggleAllCampaignEmirates}>
                     <span>{allCampaignEmiratesSelected ? "✓" : ""}</span>
-                    <div><strong>Select all Emirates</strong><small>Run the campaign across all seven UAE markets</small></div>
+                    <div><strong>Select all {country.regionLabel}s</strong><small>Run the campaign across all listed {country.name} markets</small></div>
                   </button>
                   <div className="campaign-choice-grid emirates">
-                    {emirates.map((emirate) => (
-                      <button type="button" role="checkbox" aria-checked={campaignEmirates.includes(emirate)} key={emirate} className={campaignEmirates.includes(emirate) ? "selected" : ""} onClick={() => toggleCampaignEmirate(emirate)}>
-                        <img src={emirateCardImages[emirate]} alt={`${emirate} iconic landmark`} />
-                        <span>{campaignEmirates.includes(emirate) ? "✓" : ""}</span>
-                        <div><strong>{emirate}</strong><small>{emirateAreas[emirate].length} popular advertising areas</small></div>
+                    {marketRegions.map((region) => (
+                      <button type="button" role="checkbox" aria-checked={campaignEmirates.includes(region)} key={region} className={campaignEmirates.includes(region) ? "selected" : ""} onClick={() => toggleCampaignEmirate(region)}>
+                        <img src={emirateCardImages[region] ?? "/campaign/uae-city-billboard.png"} alt={`${region} advertising location`} />
+                        <span>{campaignEmirates.includes(region) ? "✓" : ""}</span>
+                        <div><strong>{region}</strong><small>{marketAreas[region].length} popular advertising areas</small></div>
                       </button>
                     ))}
                   </div>
-                  {campaignEmirates.length > 0 && <div className="selected-emirates-summary"><strong>{campaignEmirates.length} {campaignEmirates.length === 1 ? "Emirate" : "Emirates"} selected</strong><span>{campaignEmirates.join(" · ")}</span></div>}
-                  {campaignMissingEmirates && <p className="campaign-validation-message" role="alert">Please select at least one Emirate.</p>}
+                  {campaignEmirates.length > 0 && <div className="selected-emirates-summary"><strong>{campaignEmirates.length} {campaignEmirates.length === 1 ? country.regionLabel : `${country.regionLabel}s`} selected</strong><span>{campaignEmirates.join(" · ")}</span></div>}
+                  {campaignMissingEmirates && <p className="campaign-validation-message" role="alert">Please select at least one {country.regionLabel.toLowerCase()}.</p>}
                   {campaignMissingVenueType && <p className="campaign-validation-message" role="alert">Please choose Static or Digital, then select Road, Malls or Bridges.</p>}
                 </div>
                 {!campaignTypeIsStatic && <div className={`advertiser-plan-section ${campaignMissingPlan ? "campaign-section-error" : ""}`} id="campaign-options" aria-invalid={campaignMissingPlan}>
@@ -3508,7 +3648,7 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                               <strong>{listing.title}</strong><small>{listing.location}</small><em>{listing.category} · {listing.vendor}</em><i><b /> Owner offers {campaignTypeIsStatic ? "static booking" : campaignPlanTitles[listingPlan]}</i>
                               {!campaignTypeIsStatic && (listingPlan === "peak_hours" || listingPlan === "peak_days") && <div className="owner-slot-preview"><span>{listingPlan === "peak_hours" ? "Available peak hours" : "Available peak days"}</span><b>{listingPlan === "peak_hours" ? ownerSchedule.peakHours.map(formatHour).join(" · ") : ownerSchedule.peakDays.join(" · ")}</b></div>}
                             </div>
-                            <b>AED {formatMoney(planPrice)}<small>/{campaignTypeIsStatic ? staticCampaignDuration === "15" ? "15 days" : "30 days" : getPlanUnit(listingPlan)}</small></b>
+                            <b>{currency} {formatMoney(planPrice)}<small>/{campaignTypeIsStatic ? staticCampaignDuration === "15" ? "15 days" : "30 days" : getPlanUnit(listingPlan)}</small></b>
                           </button>
                         );
                       })}
@@ -3517,10 +3657,10 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   {campaignLocations.length > 0 && <div className="campaign-price-summary campaign-price-summary-with-schedule" aria-live="polite">
                     <div className="campaign-price-summary-head">
                       <div><span>SELECTED BILLBOARDS</span><strong>{campaignLocations.length} {campaignLocations.length === 1 ? "billboard" : "billboards"}</strong><small>Click any selected billboard again to remove it.</small></div>
-                      <div><span>{campaignNeedsHours && campaignHoursPerDay === 0 ? "COMBINED HOURLY RATE" : campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0) ? "COMBINED DAILY RATE" : "ESTIMATED CAMPAIGN TOTAL"}</span><strong>AED {formatMoney(campaignSelectionTotal)}</strong><small>{campaignNeedsHours ? campaignHoursPerDay > 0 ? `${campaignHoursPerDay} ${campaignHoursPerDay === 1 ? "hour" : "hours"} per day × ${campaignBookingDays} ${campaignBookingDays === 1 ? "day" : "days"}` : "Select the booking hours below" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${effectiveCampaignBookingDays} booking ${effectiveCampaignBookingDays === 1 ? "day" : "days"} · ${advertiserDays.join(" · ")}` : "Select valid dates and available days below" : `for ${campaignSelectionUnit}`}</small></div>
+                      <div><span>{campaignNeedsHours && campaignHoursPerDay === 0 ? "COMBINED HOURLY RATE" : campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0) ? "COMBINED DAILY RATE" : "ESTIMATED CAMPAIGN TOTAL"}</span><strong>{currency} {formatMoney(campaignSelectionTotal)}</strong><small>{campaignNeedsHours ? campaignHoursPerDay > 0 ? `${campaignHoursPerDay} ${campaignHoursPerDay === 1 ? "hour" : "hours"} per day × ${campaignBookingDays} ${campaignBookingDays === 1 ? "day" : "days"}` : "Select the booking hours below" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${effectiveCampaignBookingDays} booking ${effectiveCampaignBookingDays === 1 ? "day" : "days"} · ${advertiserDays.join(" · ")}` : "Select valid dates and available days below" : `for ${campaignSelectionUnit}`}</small></div>
                     </div>
                     <div className="campaign-price-lines">
-                      {campaignLocations.map((listing, index) => <div key={listing.id}><span>{index + 1}</span><div><strong>{listing.title}</strong><small>{listing.location} · {listing.vendor}</small></div><b>AED {formatMoney(getCampaignSelectionPrice(listing))}</b><button type="button" aria-label={`Remove ${listing.title}`} onClick={() => chooseCampaignLocation(listing)}>×</button></div>)}
+                      {campaignLocations.map((listing, index) => <div key={listing.id}><span>{index + 1}</span><div><strong>{listing.title}</strong><small>{listing.location} · {listing.vendor}</small></div><b>{currency} {formatMoney(getCampaignSelectionPrice(listing))}</b><button type="button" aria-label={`Remove ${listing.title}`} onClick={() => chooseCampaignLocation(listing)}>×</button></div>)}
                     </div>
                     {campaignNeedsHours && <div className="hourly-booking-calculator">
                       <div className="hourly-booking-heading">
@@ -3531,12 +3671,12 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                         {ownerApprovedHours.map((hour) => <button type="button" aria-pressed={advertiserHours.includes(hour)} key={hour} className={advertiserHours.includes(hour) ? "selected" : ""} onClick={() => toggleAdvertiserHour(hour)}>{formatHour(hour)}</button>)}
                       </div>
                       <div className="hourly-calculation-grid">
-                        <div><span>Combined hourly rate</span><strong>AED {formatMoney(campaignBaseRateTotal)}</strong></div>
+                        <div><span>Combined hourly rate</span><strong>{currency} {formatMoney(campaignBaseRateTotal)}</strong></div>
                         <div><span>Hours per day</span><strong>{campaignHoursPerDay}</strong></div>
                         <div><span>Booking days</span><strong>{campaignBookingDays}</strong></div>
                         <div><span>Total booked hours</span><strong>{campaignTotalBookedHours}</strong></div>
                       </div>
-                      <div className="hourly-formula"><span>Price calculation</span><strong>AED {formatMoney(campaignBaseRateTotal)} × {campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} × {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"} = AED {formatMoney(campaignHoursPerDay > 0 ? campaignSelectionTotal : 0)}</strong></div>
+                      <div className="hourly-formula"><span>Price calculation</span><strong>{currency} {formatMoney(campaignBaseRateTotal)} × {campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} × {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"} = {currency} {formatMoney(campaignHoursPerDay > 0 ? campaignSelectionTotal : 0)}</strong></div>
                     </div>}
                     {campaignNeedsDays && <div className="hourly-booking-calculator daily-booking-calculator">
                       <div className="hourly-booking-heading daily-booking-heading">
@@ -3551,17 +3691,17 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                         {ownerApprovedDays.map((day) => <button type="button" aria-pressed={advertiserDays.includes(day)} key={day} className={advertiserDays.includes(day) ? "selected" : ""} onClick={() => toggleAdvertiserDay(day)}>{day}</button>)}
                       </div>
                       <div className="hourly-calculation-grid daily-calculation-grid">
-                        <div><span>Combined daily rate</span><strong>AED {formatMoney(campaignBaseRateTotal)}</strong></div>
+                        <div><span>Combined daily rate</span><strong>{currency} {formatMoney(campaignBaseRateTotal)}</strong></div>
                         <div><span>Available days selected</span><strong>{advertiserDays.length}</strong></div>
                         <div><span>Booking days in date range</span><strong>{effectiveCampaignBookingDays}</strong></div>
                         <div><span>Billboards selected</span><strong>{campaignLocations.length}</strong></div>
                       </div>
-                      <div className="hourly-formula"><span>Price calculation</span><strong>AED {formatMoney(campaignBaseRateTotal)} daily rate × {effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} = AED {formatMoney(advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? campaignSelectionTotal : 0)}</strong></div>
+                      <div className="hourly-formula"><span>Price calculation</span><strong>{currency} {formatMoney(campaignBaseRateTotal)} daily rate × {effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} = {currency} {formatMoney(advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? campaignSelectionTotal : 0)}</strong></div>
                     </div>}
                     <div className="campaign-payment-summary">
-                      <div className="campaign-price-total"><span>{campaignNeedsHours ? campaignHoursPerDay > 0 ? "Estimated total media price" : "Select at least one hour to calculate the total" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? "Estimated total media price" : "Select valid dates and at least one available day" : "Combined estimated media price"}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoney(campaignSelectionTotal)}`} {!campaignNeedsHours && !campaignNeedsDays && <small>/ {campaignSelectionUnit}</small>}</strong></div>
-                      <div className="campaign-price-total campaign-vat-total"><span>UAE VAT (5%)</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoneyWithFils(campaignVatAmount)}`}</strong></div>
-                      <div className="campaign-price-total campaign-payable-total"><span>Total payable amount</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? "AED —" : `AED ${formatMoneyWithFils(campaignPayableTotal)}`}</strong></div>
+                      <div className="campaign-price-total"><span>{campaignNeedsHours ? campaignHoursPerDay > 0 ? "Estimated total media price" : "Select at least one hour to calculate the total" : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? "Estimated total media price" : "Select valid dates and at least one available day" : "Combined estimated media price"}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoney(campaignSelectionTotal)}`} {!campaignNeedsHours && !campaignNeedsDays && <small>/ {campaignSelectionUnit}</small>}</strong></div>
+                      <div className="campaign-price-total campaign-vat-total"><span>{country.vatLabel}</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoneyWithFils(campaignVatAmount)}`}</strong></div>
+                      <div className="campaign-price-total campaign-payable-total"><span>Total payable amount</span><strong>{(campaignNeedsHours && campaignHoursPerDay === 0) || (campaignNeedsDays && (advertiserDays.length === 0 || effectiveCampaignBookingDays === 0)) ? `${currency} —` : `${currency} ${formatMoneyWithFils(campaignPayableTotal)}`}</strong></div>
                     </div>
                   </div>}
                   {campaignMissingInventory && <p className="campaign-validation-message" role="alert">Please show the matching inventory and select at least one billboard location.</p>}
@@ -3576,17 +3716,17 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                   {!campaignTypeIsStatic && (!advertiserPlan || campaignLocations.length === 0) && <div className="owner-schedule-lock"><span>🔒</span><div><strong>Owner schedule unlocks after inventory selection</strong><small>Choose a booking type and at least one matching billboard above. Generic hours and days are no longer displayed.</small></div></div>}
                   {!campaignTypeIsStatic && campaignLocations.length > 0 && (advertiserPlan === "hourly_base" || advertiserPlan === "peak_hours") && <div className="campaign-owner-schedule hourly-booking-recap">
                     <div><span>HOURLY BOOKING SUMMARY</span><strong>{campaignHoursPerDay} {campaignHoursPerDay === 1 ? "hour" : "hours"} per day for {campaignBookingDays} {campaignBookingDays === 1 ? "day" : "days"}</strong><small>{advertiserHours.length > 0 ? [...advertiserHours].sort((a, b) => a - b).map(formatHour).join(" · ") : "Select the required hours in the price calculator above."}</small></div>
-                    <b>{advertiserHours.length > 0 ? `AED ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
+                    <b>{advertiserHours.length > 0 ? `${currency} ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
                   </div>}
                   {!campaignTypeIsStatic && campaignLocations.length > 0 && (advertiserPlan === "selected_days" || advertiserPlan === "peak_days") && <div className="campaign-owner-schedule hourly-booking-recap daily-booking-recap">
                     <div><span>DAILY BOOKING SUMMARY</span><strong>{effectiveCampaignBookingDays} booking {effectiveCampaignBookingDays === 1 ? "day" : "days"} across {campaignLocations.length} {campaignLocations.length === 1 ? "billboard" : "billboards"}</strong><small>{campaignStartDate && campaignEndDate ? `${campaignStartDate} to ${campaignEndDate} · ${advertiserDays.join(" · ") || "select available days"}` : "Select the starting date, ending date and available days in the calculator above."}</small></div>
-                    <b>{advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `AED ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
+                    <b>{advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${currency} ${formatMoney(campaignSelectionTotal)}` : "Not calculated"}</b>
                   </div>}
                   {campaignMissingOwnerSchedule && <p className="campaign-validation-message" role="alert">{campaignNeedsHours ? "Please select at least one owner-approved hour." : campaignDayRangeHasNoBookingDays ? "The selected date range does not contain any of the chosen available days." : "Please select at least one owner-approved day."}</p>}
                   {!campaignNeedsDays && campaignMissingDates && <p className="campaign-validation-message" role="alert">Please enter a valid start date in DD/MM/YYYY format.</p>}
                   </div>
                 </div>
-                <div className="campaign-plan-summary"><span>Selected plan</span><strong>{campaignTypeIsStatic ? `${staticCampaignDuration}-day static billboard advertisement` : advertiserPlan ? campaignPlanTitles[advertiserPlan] : "Choose a booking type"}</strong><small>{campaignLocations.length > 0 ? campaignNeedsHours ? advertiserHours.length > 0 ? `${campaignLocations.length} ${campaignLocations.length === 1 ? "billboard" : "billboards"} · ${campaignHoursPerDay} hours/day × ${campaignBookingDays} days · estimated total AED ${formatMoney(campaignSelectionTotal)}` : "Select the required hours per day to calculate the campaign price." : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${campaignStartDate} to ${campaignEndDate} · ${effectiveCampaignBookingDays} matching booking days · estimated total AED ${formatMoney(campaignSelectionTotal)}` : "Select the starting date, ending date and available days to calculate the campaign price." : `${campaignLocations.length} ${campaignLocations.length === 1 ? "billboard" : "billboards"} selected · combined estimated price AED ${formatMoney(campaignSelectionTotal)} / ${campaignSelectionUnit}` : campaignTypeIsStatic ? "Select one or more static billboards to calculate the combined price." : !advertiserPlan ? "Select Hourly, Peak Hours, Days, Peak Days or Monthly before choosing inventory." : `Only owner inventory offering ${campaignPlanTitles[advertiserPlan]} will be shown.`}</small></div>
+                <div className="campaign-plan-summary"><span>Selected plan</span><strong>{campaignTypeIsStatic ? `${staticCampaignDuration}-day static billboard advertisement` : advertiserPlan ? campaignPlanTitles[advertiserPlan] : "Choose a booking type"}</strong><small>{campaignLocations.length > 0 ? campaignNeedsHours ? advertiserHours.length > 0 ? `${campaignLocations.length} ${campaignLocations.length === 1 ? "billboard" : "billboards"} · ${campaignHoursPerDay} hours/day × ${campaignBookingDays} days · estimated total ${currency} ${formatMoney(campaignSelectionTotal)}` : "Select the required hours per day to calculate the campaign price." : campaignNeedsDays ? advertiserDays.length > 0 && effectiveCampaignBookingDays > 0 ? `${campaignStartDate} to ${campaignEndDate} · ${effectiveCampaignBookingDays} matching booking days · estimated total ${currency} ${formatMoney(campaignSelectionTotal)}` : "Select the starting date, ending date and available days to calculate the campaign price." : `${campaignLocations.length} ${campaignLocations.length === 1 ? "billboard" : "billboards"} selected · combined estimated price ${currency} ${formatMoney(campaignSelectionTotal)} / ${campaignSelectionUnit}` : campaignTypeIsStatic ? "Select one or more static billboards to calculate the combined price." : !advertiserPlan ? "Select Hourly, Peak Hours, Days, Peak Days or Monthly before choosing inventory." : `Only owner inventory offering ${campaignPlanTitles[advertiserPlan]} will be shown.`}</small></div>
                 <button className="button button-accent submit-button">{isCampaignTestMode ? "Continue test to campaign name →" : "Continue to campaign name →"}</button>
               </form>
             ) : campaignStage === "name" ? (
@@ -3605,14 +3745,14 @@ export default function MarketplaceClient({ startCampaign, resetToken, adminEntr
                 <section className="campaign-name-inventory">
                   <div className="campaign-name-inventory-head">
                     <div><span>SELECTED BILLBOARDS</span><strong>Included in this campaign</strong></div>
-                    <b>AED {formatMoney(campaignSelectionTotal)}</b>
+                    <b>{currency} {formatMoney(campaignSelectionTotal)}</b>
                   </div>
                   <div className="campaign-name-inventory-list">
                     {campaignLocations.map((listing, index) => (
                       <div key={listing.id}>
                         <span>{index + 1}</span>
                         <div><strong>{listing.title}</strong><small>{listing.location} · {listing.category}</small></div>
-                        <b>AED {formatMoney(getCampaignSelectionPrice(listing))}</b>
+                        <b>{currency} {formatMoney(getCampaignSelectionPrice(listing))}</b>
                       </div>
                     ))}
                   </div>

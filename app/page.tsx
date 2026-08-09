@@ -1,13 +1,21 @@
 import MarketplaceClient from "./marketplace-client";
+import { headers } from "next/headers";
+import { countryConfigs, getCountryFromHost, type CountryCode } from "./country-config";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams: Promise<{ start_campaign?: string; reset_token?: string }>;
+  searchParams: Promise<{ start_campaign?: string; reset_token?: string; country?: string }>;
 };
 
 export default async function Page({ searchParams }: PageProps) {
-  const params = await searchParams;
+  const [params, requestHeaders] = await Promise.all([searchParams, headers()]);
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "";
+  const previewMode = host.includes("chatgpt.site") || host.includes("terminal.local");
+  const previewCountry = params.country?.toLowerCase() as CountryCode | undefined;
+  const country = previewMode && previewCountry && countryConfigs[previewCountry]
+    ? countryConfigs[previewCountry]
+    : getCountryFromHost(host);
 
-  return <MarketplaceClient startCampaign={params.start_campaign === "1"} resetToken={params.reset_token || ""} />;
+  return <MarketplaceClient country={country} previewMode={previewMode} startCampaign={params.start_campaign === "1"} resetToken={params.reset_token || ""} />;
 }

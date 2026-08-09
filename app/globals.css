@@ -319,8 +319,8 @@ body { font-family: var(--font-geist-sans), Arial, sans-serif; }
 footer { padding-top: 65px; background: #05080d; }
 
 .landing-mode { min-height: 100svh; background: #02050a; }
-.landing-gateway { position: relative; min-height: 100svh; overflow: hidden; background: #02050a; isolation: isolate; }
-.landing-gateway > img { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.landing-gateway { position: relative; width: 100%; height: 100svh; min-height: 100svh; overflow: hidden; background: #02050a; isolation: isolate; }
+.landing-gateway > img { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100svh; min-height: 100%; max-width: none; object-fit: cover; object-position: center; }
 .landing-shade { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg,rgba(2,5,10,.6) 0%,rgba(2,5,10,.22) 44%,transparent 67%),linear-gradient(180deg,rgba(2,5,10,.08) 42%,rgba(2,5,10,.18) 65%,rgba(2,5,10,.9) 100%); pointer-events: none; }
 .landing-copy { position: absolute; left: clamp(28px,5.5vw,94px); top: clamp(48px,9vh,96px); z-index: 2; width: min(610px,45vw); color: white; }
 .landing-wordmark { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; }
@@ -1997,5 +1997,3 @@ footer { padding-top: 65px; background: #05080d; }
     background: linear-gradient(180deg,rgba(1,5,16,.08) 0%,rgba(1,5,16,.18) 50%,rgba(1,3,10,.58) 100%);
   }
 }
-
-/* Cloudflare rebuild: full-screen homepage hero */

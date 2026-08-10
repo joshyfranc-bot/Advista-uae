@@ -2716,7 +2716,6 @@ export default function MarketplaceClient({ country, previewMode = false, startC
             <button className="landing-button landing-button-primary" onClick={openVendor}>Add Your Inventory</button>
             <button className="landing-button landing-button-test" onClick={openCampaignTestMode}>Test Campaign</button>
             <button className="landing-button landing-button-secondary" onClick={openAdvertiserEntry}>Login / Start Campaign</button>
-            <button className="landing-button landing-button-test" onClick={() => { window.location.href = "https://admin.asnads.com"; }}>Admin Portal</button>
           </div>
         </section>
       ) : adminPanelOpen && authUser.role === "admin" ? (
